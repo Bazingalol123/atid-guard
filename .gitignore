@@ -1,0 +1,30 @@
+# Ignore build outputs for all projects
+**/bin/
+**/obj/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# VS Code settings folder
+.vscode/
+
+# Visual Studio files
+.vs/
+
+# NPM packages (if any project uses npm)
+node_modules/
+
+# Publish folders
+**/publish/
+
+# Logs
+*.log
+
+# Secrets
+appsettings.*.json
+
+# Others
+*.db

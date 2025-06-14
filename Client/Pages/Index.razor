@@ -1,0 +1,42 @@
+﻿@page "/"
+@inject IAuthenticationService auth
+
+<PageTitle>עתיד בטוח</PageTitle>
+
+<!-- ניהול משתמשים - תצוגה שונה לפי משתמש -->
+
+<AuthorizeView>
+    <!-- ניהול משתמשים - משתמש מחובר -->
+    <Authorized>
+        @if (user != null)
+        {
+            
+
+      
+           
+
+            <ChatComponent/>
+            
+        }
+    </Authorized>
+    <!-- ניהול משתמשים - משתמש לא מחובר -->
+    <NotAuthorized>
+        <ChatComponent/>
+    </NotAuthorized>
+</AuthorizeView>
+
+
+@code {
+
+    [CascadingParameter]
+    private User user { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+    }
+   
+    async Task Logout()
+    {
+        await auth.Logout();
+    }
+}

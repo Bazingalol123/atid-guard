@@ -1,0 +1,548 @@
+﻿/* BabyKeeper Chat Interface Styling
+   Based on provided design images */
+@import url('https://fonts.googleapis.com/css2?family=Assistant:wght@200..800&display=swap');
+
+/* Color variables */
+:root {
+    --pink-primary: #E31C79;
+    --pink-light: #FAE2EF;
+    --pink-hover: #C71868;
+    --gray-light: #F8F9FA;
+    --gray-text: #666666;
+    --white: #ffffff;
+    --border-color: #E5E7EB;
+    --blue-secondary: #EFF2F7;
+    --blue-primary: #316197;
+    --blue-icons: #55595C
+}
+
+/* Global styles */
+body {
+    font-family: 'Assistant', sans-serif;
+    color: #333333;
+    background-color: var(--gray-light);
+}
+
+/* Direction classes */
+.rtl {
+    direction: rtl;
+    text-align: right;
+}
+
+.ltr {
+    direction: ltr;
+    text-align: left;
+}
+
+/* Adjust message alignment */
+.rtl .bot-message, .rtl .user-message {
+    text-align: right;
+}
+
+.ltr .bot-message, .ltr .user-message {
+    text-align: left;
+    direction: ltr !important;
+}
+
+/* RTL-specific styling */
+.rtl .last-bot-message {
+    margin-right: 35px;
+    margin-left: 0;
+}
+
+    .rtl .last-bot-message .bot-icon-container {
+        position: absolute;
+        right: -55px;
+        left: auto;
+        bottom: 0;
+    }
+
+        .rtl .last-bot-message .bot-icon-container .message-icon {
+            left: 0;
+            transform: scaleX(-1);
+        }
+
+/* LTR-specific styling */
+.ltr .last-bot-message {
+    margin-left: 35px;
+    margin-right: 0;
+}
+
+    .ltr .last-bot-message .bot-icon-container {
+        position: absolute;
+        left: -55px;
+        right: auto;
+        bottom: 0;
+    }
+
+/* Make sure bot messages have correct direction in both modes */
+.rtl .bot-message {
+    text-align: right;
+    direction: rtl;
+}
+
+.ltr .bot-message {
+    text-align: left;
+    direction: ltr;
+}
+
+
+/* Adjust options container */
+.rtl .options-container {
+    justify-content: flex-start;
+}
+
+.ltr .options-container {
+    justify-content: flex-start;
+}
+
+div#chatMessages.chat-messages > div > div.bot-icon-container {
+    position: relative;
+    left:0;
+
+    
+}
+
+div#chatMessages.chat-messages > div > div.bot-icon-container {
+    position: relative;
+    left: 0;
+}
+
+.ltr .last-bot-message .message-icon {
+    left:0;
+}
+
+.ltr .message-icon {
+    left: -0.5rem;
+}
+
+
+#classForIsWelcomeMessage {
+    display: flex;
+    justify-content: center;
+    flex-direction: row-reverse;
+    max-width: 45vw;
+    padding: 1vw;
+}
+
+/* Chat container */
+.chat-container {
+    max-width: 40%;
+    margin: 2rem auto;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    height: 85vh;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--white);
+    position:relative;
+}
+
+.btn-main {
+    background-color: #E31C79;
+    color: white;
+}
+
+.chat-header > .dropdown > .dropdown-toggle::after {
+    display:none;
+}
+
+.image-logo {
+    width: 4rem;
+    height: 4rem;
+}
+
+.message-icon {
+    width: 45px;
+    height: 45px;
+}
+
+.chat-header {
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
+    background-image: url('../header.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    color: white;
+    padding: 15px 20px;
+    font-weight: bold;
+    font-size: 30px;
+    height:8rem;
+}
+
+
+/* Separator div */
+.chat-separator {
+    height: 20px;
+    width: 100%;
+    background-color: transparent;
+}
+
+/* First message negative margin to fill the gap */
+.chat-messages .message:first-of-type {
+    margin-top: -20px;
+}
+/* Modern scrollbar styling for chat-messages in Chrome */
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--white);
+    /* Modern scrollbar properties */
+    scrollbar-width: thin;
+    scrollbar-color: #55595C #f1f1f1;
+}
+
+    /* WebKit-specific properties for Chrome */
+    .chat-messages::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .chat-messages::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+
+    .chat-messages::-webkit-scrollbar-thumb {
+        background: #E31C79;
+        border-radius: 4px;
+    }
+
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: #C71868;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb:active {
+            background: #A61457;
+        }
+
+
+/* Messages */
+.message {
+    margin-bottom: 15px;
+    max-width: 100%;
+    display: flex;
+    width: 100%;
+}
+
+/* User message container */
+.user-message-container {
+    justify-content: flex-end;
+    align-self: flex-end;
+    flex-direction: column;
+    width: auto;
+}
+
+/* Bot message container */
+.bot-message-container {
+    justify-content: flex-start;
+    align-self: flex-start;
+    position: relative;
+}
+
+.bot-message {
+    background-color: var(--blue-secondary);
+    padding: 12px 18px;
+    border-radius: 18px 18px 0px 18px;
+    color: #333333;
+    line-height: 1.5;
+}
+
+.user-message {
+    background-color: var(--blue-primary);
+    padding: 12px 18px;
+    border-radius: 18px 18px 18px 0px;
+    color: white;
+    line-height: 1.5;
+    text-align: right;
+    direction: rtl;
+}
+
+/* Categories and options */
+.categories-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 15px 0;
+    width: 100%;
+    justify-content: center;
+}
+
+.category-button {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--white);
+    color: #333333;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 14px;
+    text-align: center;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.category-button:hover {
+    cursor: pointer;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-color: var(--pink-primary);
+}
+
+    .category-button > img {
+        width: 4rem;
+        height: 4rem;
+        margin-bottom: 8px;
+    }
+
+.category-button > p {
+    margin: 0;
+    font-size: 16px;
+    color: var(--gray-text);
+}
+
+.options-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 15px 0;
+    justify-content: flex-start;
+    padding: 0 15px;
+}
+
+.option-button {
+    background-color: var(--white);
+    border: 1px solid var(--pink-hover);
+    border-radius: 20px;
+    padding: 10px 18px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #333333;
+    text-align: right;
+    font-weight:400;
+}
+
+.ltr .option-button {
+    text-align:left;
+}
+
+    .option-button:hover {
+        background-color: var(--pink-light);
+    }
+
+    .option-button.downloading::before {
+        content: "";
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border: 2px solid rgba(0, 0, 0, 0.1);
+        border-top: 2px solid var(--blue-primary);
+        border-radius: 50%;
+        margin-right: 6px;
+        animation: spin 1s linear infinite;
+        vertical-align: middle;
+    }
+
+/* Spinner animation */
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Back button */
+.back-button {
+    display: flex;
+    justify-content: end;
+    background-color: transparent;
+    color: var(--gray-text);
+    border: none;
+    padding: 5px 10px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    align-items:center;
+    text-decoration: underline;
+    transition: all 0.2s ease;
+    margin-top: 5px;
+}
+
+.back-button {
+}
+
+.back-button:hover {
+    color: var(--pink-primary);
+}
+
+.last-bot-message {
+    margin-right: 35px;
+    width:80%;
+}
+
+    .last-bot-message .bot-icon-container {
+        position: absolute;
+        right: -55px; /* Position bot icon to the left of messages */
+        bottom: 0;
+    }
+
+    .bot-icon-container {
+        padding: 0.5vw;
+
+    }
+
+
+.message-icon {
+    width: 35px;
+    height: 35px;
+    position: relative;
+    left: 0.5rem;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Loading animation */
+.loading:after {
+    content: '...';
+    animation: dots 1s steps(5, end) infinite;
+}
+
+@keyframes dots {
+    0%, 20% {
+        content: '.';
+    }
+    40% {
+        content: '..';
+    }
+    60%, 100% {
+        content: '...';
+    }
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 150 !important;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-visible {
+    display: block;
+}
+
+
+.modal-content {
+    top:5rem;
+    background-color: var(--white);
+    border-radius: 20px;
+    width: 90%;
+    max-width: 50rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+}
+
+.download-button {
+    background-color: var(--pink-primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.download-button:hover {
+    background-color: var(--pink-hover);
+}
+
+#classForIsWelcomeState {
+    display: flex;
+    justify-content: center;
+    flex-direction: row-reverse;
+    max-width:45vw;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+   
+
+    .chat-container {
+        height: 90vh;
+        max-width: 100%;
+        margin: 0;
+        border-radius: 1.3rem;
+
+    }
+
+    .image-logo{
+        height:3rem;
+        width:3rem;
+    }
+
+    .categories-container {
+        grid-template-columns: repeat(2, 1fr);
+        position: relative;
+        right: 4rem;
+    }
+    
+    .chat-messages.ltr .categories-container{
+        right:0rem;
+    }
+
+    .category-button{
+        height:10rem;
+        width:8rem;
+    }
+
+        .category-button > p {
+            font-size:1rem;
+        }
+
+   
+    .message-icon{
+        right:0;
+    }
+
+  
+    /* RTL specific positioning for last bot message icon */
+    .chat-messages.rtl .message.bot-message-container.last-bot-message .bot-message .bot-icon-container .message-icon {
+        right: 0.5rem;
+        left: auto; /* Clear any left positioning from LTR rules */
+    }
+    .chat-messages.ltr #classForIsWelcomeState {
+        display: flex;
+        justify-content: center;
+        flex-direction: row-reverse;
+        padding: 1vw;
+        max-width: 100%;
+    }
+   
+}
+
