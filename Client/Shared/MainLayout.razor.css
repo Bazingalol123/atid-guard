@@ -1,0 +1,21 @@
+:root {
+    --background-color: #F8F9FA;
+}
+
+.page {
+    min-height: 100vh;
+    background-color: var(--background-color);
+}
+
+.content {
+    padding: 2rem;
+    margin: 0 auto;
+    max-width: 1400px;
+    min-height: calc(100vh - 60px);
+}
+
+@media (max-width: 768px) {
+    .content {
+        padding: 1rem;
+    }
+}

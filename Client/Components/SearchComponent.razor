@@ -1,0 +1,323 @@
+﻿@using AuthWithAdmin.Shared.ClientModels
+@inject IJSRuntime JSRuntime
+@inject ILogger<SearchComponent> Logger
+
+@if (IsOpen)
+{
+    <div class="search-overlay @DirectionClass">
+        <div class="search-container">
+            <div class="d-flex justify-content-end ">
+                <button class="fa-solid fa-xmark" style="background-color:transparent; color:#55595C;" @onclick="Close"></button>
+            </div>
+            <div class="search-input-container @DirectionClass">
+                <input type="text"
+                       @ref="searchInput"
+                       @bind="searchQuery"
+                       @bind:event="oninput"
+                       @onkeyup="HandleSearchInput"
+                       placeholder="@GetSearchPlaceholder()"
+                       class="search-input @(showInitialButton ? "" : "with-placeholder") @DirectionClass" />
+                <span class="search-icon"><i class="fa-solid fa-magnifying-glass" style="color:#55595C"></i></span>
+            </div>
+
+
+            <div class="search-results @DirectionClass">
+                @if (searchResults.Any())
+                {
+                    foreach (var result in searchResults)
+                    {
+                        <div class="search-result-item @DirectionClass" @onclick="() => HandleSearchResultClick(result)">
+                            <div class="result-text">@result.Content</div>
+                            <div class="result-category">@result.Category</div>
+                        </div>
+                    }
+                }
+                else if (!string.IsNullOrEmpty(searchQuery) && !searchResults.Any())
+                {
+                    <div class="search-result-item no-results @DirectionClass">
+                        <p class="result-text">@GetNoResultsMessage()</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public string currentLanguage { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public ChatDataModel ChatData { get; set; }
+    [Parameter] public EventCallback<SearchResult> OnResultSelected { get; set; }
+    [Parameter] public Func<int, string> GetCategoryName { get; set; }
+
+    private string searchQuery = string.Empty;
+    private List<SearchResult> searchResults = new List<SearchResult>();
+    private ElementReference searchInput;
+    private bool showInitialButton = false;
+
+    // Generate direction class based on language
+    private string DirectionClass => currentLanguage switch
+    {
+        "English" => "ltr",
+        _ => "rtl" // Arabic and Hebrew default to RTL
+    };
+
+
+    private string GetSearchPlaceholder()
+    {
+        return currentLanguage switch
+        {
+            "English" => "Type keywords like: crib, sleep, stroller",
+            "Arabic" => "اكتب كلمات مفتاحية مثل: سرير، نوم، عربة",
+            _ => "ניתן לחפש מילות מפתח כמו: מיטה, שינה, עגלה" // Hebrew default
+        };
+    }
+
+    private string GetNoResultsMessage()
+    {
+        return currentLanguage switch
+        {
+            "English" => "No matching results found.",
+            "Arabic" => "لم يتم العثور على نتائج مطابقة.",
+            _ => "לא נמצאו תוצאות מתאימות." // Hebrew default
+        };
+    }
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen)
+        {
+            await Task.Delay(100);
+            await JSRuntime.InvokeVoidAsync("eval", "document.querySelector('.search-input').focus()");
+        }
+        else
+        {
+            Reset();
+        }
+    }
+
+    private async Task Close()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+        Reset();
+    }
+
+    private void Reset()
+    {
+        searchQuery = string.Empty;
+        searchResults.Clear();
+        showInitialButton = true;
+    }
+
+    private void HandleSearchInput()
+    {
+
+        if (string.IsNullOrWhiteSpace(searchQuery) || searchQuery.Length < 2)
+        {
+            searchResults.Clear();
+            showInitialButton = true;
+            return;
+        }
+
+        showInitialButton = false;
+        searchResults = PerformSearch(searchQuery.ToLower());
+        StateHasChanged();
+    }
+
+    private List<SearchResult> PerformSearch(string query)
+    {
+        var results = new List<SearchResult>();
+        var addedQuestionIds = new HashSet<int>(); // Track already added questions
+
+        if (ChatData?.Questions != null)
+        {
+            foreach (var categoryQuestions in ChatData.Questions)
+            {
+                // Find the category object to access localized names
+                var category = ChatData.Categories.FirstOrDefault(c => c.ID == categoryQuestions.Key);
+
+                // Default category name (Hebrew)
+                string hebrewCategoryName = GetCategoryName?.Invoke(categoryQuestions.Key) ?? "קטגוריה";
+
+                // Get localized category names
+                string englishCategoryName = !string.IsNullOrEmpty(category?.categoryNameEN)
+                    ? category.categoryNameEN
+                    : hebrewCategoryName;
+
+                string arabicCategoryName = !string.IsNullOrEmpty(category?.categoryNameAR)
+                    ? category.categoryNameAR
+                    : hebrewCategoryName;
+
+                foreach (var question in categoryQuestions.Value)
+                {
+                    // Check across all language versions of question text
+                    bool questionTextMatchHebrew = question.questionText?.ToLower().Contains(query) ?? false;
+                    bool questionTextMatchEnglish = question.questionTextEN?.ToLower().Contains(query) ?? false;
+                    bool questionTextMatchArabic = question.questionTextAR?.ToLower().Contains(query) ?? false;
+
+                    // Check across all language versions of answer text
+                    bool answerTextMatchHebrew = question.answerText?.ToLower().Contains(query) ?? false;
+                    bool answerTextMatchEnglish = question.answerTextEN?.ToLower().Contains(query) ?? false;
+                    bool answerTextMatchArabic = question.answerTextAR?.ToLower().Contains(query) ?? false;
+
+                    // Check across all language versions of next step text
+                    bool nextStepMatchHebrew = question.nextStep?.ToLower().Contains(query) ?? false;
+                    bool nextStepMatchEnglish = question.nextStepEN?.ToLower().Contains(query) ?? false;
+                    bool nextStepMatchArabic = question.nextStepAR?.ToLower().Contains(query) ?? false;
+
+                    // Check for matches in question text first
+                    if ((questionTextMatchHebrew || questionTextMatchEnglish || questionTextMatchArabic) &&
+                        !addedQuestionIds.Contains(question.Id))
+                    {
+                        string displayContent;
+                        string language;
+                        string categoryName;
+
+                        // Determine which language version to display
+                        if (questionTextMatchEnglish)
+                        {
+                            displayContent = !string.IsNullOrEmpty(question.questionTextEN) ?
+                                question.questionTextEN : question.questionText;
+                            language = "English";
+                            categoryName = englishCategoryName; // Use English category name
+                        }
+                        else if (questionTextMatchArabic)
+                        {
+                            displayContent = !string.IsNullOrEmpty(question.questionTextAR) ?
+                                question.questionTextAR : question.questionText;
+                            language = "Arabic";
+                            categoryName = arabicCategoryName; // Use Arabic category name
+                        }
+                        else
+                        {
+                            displayContent = question.questionText;
+                            language = "עברית";
+                            categoryName = hebrewCategoryName; // Use Hebrew category name
+                        }
+
+                        results.Add(new SearchResult
+                        {
+                            Type = "שאלה",
+                            Content = displayContent,
+                            Category = categoryName,
+                            CategoryId = categoryQuestions.Key,
+                            QuestionId = question.Id,
+                            ActionParams = question.Id.ToString(),
+                            Language = language
+                        });
+                        addedQuestionIds.Add(question.Id);
+                    }
+                    // Then check for matches in answer text
+                    else if ((answerTextMatchHebrew || answerTextMatchEnglish || answerTextMatchArabic) &&
+                             !addedQuestionIds.Contains(question.Id))
+                    {
+                        string displayContent;
+                        string language;
+                        string categoryName;
+
+                        // Determine which language version to display
+                        if (answerTextMatchEnglish)
+                        {
+                            displayContent = !string.IsNullOrEmpty(question.questionTextEN) ?
+                                question.questionTextEN : question.questionText;
+                            language = "English";
+                            categoryName = englishCategoryName; // Use English category name
+                        }
+                        else if (answerTextMatchArabic)
+                        {
+                            displayContent = !string.IsNullOrEmpty(question.questionTextAR) ?
+                                question.questionTextAR : question.questionText;
+                            language = "Arabic";
+                            categoryName = arabicCategoryName; // Use Arabic category name
+                        }
+                        else
+                        {
+                            displayContent = question.questionText;
+                            language = "עברית";
+                            categoryName = hebrewCategoryName; // Use Hebrew category name
+                        }
+
+                        results.Add(new SearchResult
+                        {
+                            Type = "תשובה",
+                            Content = displayContent,
+                            Category = categoryName,
+                            CategoryId = categoryQuestions.Key,
+                            QuestionId = question.Id,
+                            ActionParams = question.Id.ToString(),
+                            Language = language
+                        });
+                        addedQuestionIds.Add(question.Id);
+                    }
+                    // Finally check for matches in next step text
+                    else if ((nextStepMatchHebrew || nextStepMatchEnglish || nextStepMatchArabic) &&
+                             !addedQuestionIds.Contains(question.Id))
+                    {
+                        string displayContent;
+                        string language;
+                        string categoryName;
+
+                        // Determine which language version to display
+                        if (nextStepMatchEnglish)
+                        {
+                            displayContent = !string.IsNullOrEmpty(question.questionTextEN) ?
+                                question.questionTextEN : question.questionText;
+                            language = "English";
+                            categoryName = englishCategoryName; // Use English category name
+                        }
+                        else if (nextStepMatchArabic)
+                        {
+                            displayContent = !string.IsNullOrEmpty(question.questionTextAR) ?
+                                question.questionTextAR : question.questionText;
+                            language = "Arabic";
+                            categoryName = arabicCategoryName; // Use Arabic category name
+                        }
+                        else
+                        {
+                            displayContent = question.questionText;
+                            language = "עברית";
+                            categoryName = hebrewCategoryName; // Use Hebrew category name
+                        }
+
+                        results.Add(new SearchResult
+                        {
+                            Type = "שלב הבא",
+                            Content = displayContent,
+                            Category = categoryName,
+                            CategoryId = categoryQuestions.Key,
+                            QuestionId = question.Id,
+                            ActionParams = question.Id.ToString(),
+                            Language = language
+                        });
+                        addedQuestionIds.Add(question.Id);
+                    }
+                }
+            }
+        }
+
+        return results;
+    }
+
+
+    private async Task HandleSearchResultClick(SearchResult result)
+    {
+        // Add language info to the result to pass to the parent component
+        await Close();
+
+        // The parent component will handle language switching based on the result.Language property
+        await OnResultSelected.InvokeAsync(result);
+    }
+
+    public class SearchResult
+    {
+        public string Type { get; set; }
+        public string Title { get; set; }
+        public string Content { get; set; }
+        public string Category { get; set; }
+        public int? CategoryId { get; set; }
+        public int? QuestionId { get; set; }
+        public string ActionParams { get; set; }
+        public string Language { get; set; } // Add this property
+    }
+}

@@ -1,0 +1,255 @@
+﻿@page "/signup"
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Forms
+@inject NavigationManager nav
+
+<PageTitle>הרשמה לפרויקט מגניב</PageTitle>
+
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <img src="./logo-chat.webp" alt="Logo" class="auth-logo" />
+            <h2>הרשמה</h2>
+        </div>
+
+        <EditForm Model="@newUser" OnValidSubmit="@signup" class="auth-form">
+            <DataAnnotationsValidator />
+
+            <div class="form-group">
+                <label for="userfname">שם פרטי</label>
+                <div class="input-group">
+                    <InputText id="userfname" @bind-Value="newUser.FirstName" class="form-control" />
+                </div>
+                <ValidationMessage For="@(() => newUser.FirstName)" class="validation-message" />
+            </div>
+
+            <div class="form-group">
+                <label for="userlname">שם משפחה</label>
+                <div class="input-group">
+                    <InputText id="userlname" @bind-Value="newUser.LastName" class="form-control" />
+                </div>
+                <ValidationMessage For="@(() => newUser.LastName)" class="validation-message" />
+            </div>
+
+            <div class="form-group">
+                <label for="email">אימייל</label>
+                <div class="input-group">
+                    <InputText id="email" type="email" @bind-Value="newUser.Email" class="form-control" />
+                </div>
+                <ValidationMessage For="@(() => newUser.Email)" class="validation-message" />
+            </div>
+
+            <div class="form-group">
+                <label for="password">סיסמה</label>
+                <div class="input-group">
+                    <InputText id="password" type="password" @bind-Value="newUser.Password" class="form-control" />
+                </div>
+                <ValidationMessage For="@(() => newUser.Password)" class="validation-message" />
+            </div>
+
+            <div class="form-group">
+                <label for="confirmPassword">אימות סיסמה</label>
+                <div class="input-group">
+                    <InputText id="confirmPassword" type="password" @bind-Value="newUser.ConfirmPassword" class="form-control" />
+                </div>
+                <ValidationMessage For="@(() => newUser.ConfirmPassword)" class="validation-message" />
+            </div>
+
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="alert alert-danger">@message</div>
+            }
+
+            <div class="form-buttons">
+                <button type="submit" class="button" disabled="@loading">
+                    @if (loading)
+                    {
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    }
+                    הרשמה
+                </button>
+
+               
+            </div>
+
+            <div class="auth-footer">
+                <span>כבר יש לך חשבון?</span>
+                <a href="login" class="login-link">התחברות</a>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+<style>
+    .auth-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background-color: transparent;
+        padding: 20px;
+    }
+
+    .auth-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+        width: 100%;
+        max-width: 400px;
+    }
+
+    .auth-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .auth-logo {
+        width: 80px;
+        height: 80px;
+        margin-bottom: 1rem;
+    }
+
+    .auth-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .form-group label {
+        font-weight: 500;
+        color: #333;
+    }
+
+    .input-group {
+        position: relative;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: border-color 0.2s;
+    }
+
+    .form-control:focus {
+            border-color: #E51876;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(255, 20, 147, 0.2);
+    }
+
+    .validation-message {
+        color: #dc3545;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+
+    .form-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .btn {
+        width: 100%;
+        padding: 0.75rem;
+        border: none;
+        border-radius: 8px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .btn-primary {
+        background-color: #E51876;
+        color: white;
+    }
+
+    .btn-primary:hover {
+            background-color: #E51876dd;
+    }
+
+    .btn-primary:disabled {
+            background-color: #E5187688;
+        cursor: not-allowed;
+    }
+
+    .btn-google {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        background-color: white;
+        border: 1px solid #ddd;
+        color: #333;
+    }
+
+    .btn-google img {
+        width: 20px;
+        height: 20px;
+    }
+
+    .auth-footer {
+        text-align: center;
+        margin-top: 2rem;
+        color: #666;
+    }
+
+    .login-link {
+        color: #E51876;
+        text-decoration: none;
+        font-weight: 500;
+        margin-right: 0.5rem;
+    }
+
+    .login-link:hover {
+        text-decoration: underline;
+    }
+</style>
+
+@code {
+    SignupForm newUser = new SignupForm();
+    public string message = "";
+    bool loading = false;
+
+    [Inject]
+    public IAuthenticationService _Auth { get; set; }
+
+    [CascadingParameter]
+    private User user { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (user != null)
+        {
+            nav.NavigateTo("./MyProjects");
+        }
+    }
+
+    async Task signup()
+    {
+        message = "";
+        loading = true;
+        bool LoginOK = await _Auth.Signup(newUser);
+        
+        if (LoginOK)
+        {
+            nav.NavigateTo("./");
+        }
+        else
+        {
+            message = "קרתה תקלה בהרשמה. אנא נסה שוב או צור קשר עם התמיכה.";
+        }
+
+        loading = false;
+    }
+}

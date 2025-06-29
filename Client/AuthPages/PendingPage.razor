@@ -1,0 +1,62 @@
+﻿@page "/Pending"
+@attribute [Authorize]
+
+<PageTitle>ממתין לאישור</PageTitle>
+
+@if (user != null)
+{
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <img src="./logo-chat.webp" alt="Logo" class="auth-logo" />
+                <h2>היי @user.FirstName!</h2>
+                <div class="pending-icon">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" stroke="#E51876" stroke-width="2" fill="none" />
+                        <path d="M12 6v6l4 2" stroke="#E51876" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </div>
+            </div>
+
+            <div class="pending-content">
+                <div class="status-message">
+                    <h3>חשבונך לא מאושר</h3>
+                    <p>אם הגעת לכאן, אין לך כרגע אישור להשתמש במערכת. </p>
+                </div>
+
+                <div class="contact-info">
+                    <p>לקבלת אישור, אפשר לפנות במייל:</p>
+                    <div class="email-container">
+                        <a href="@($"mailto:{ClientMail}?subject=בקשת אישור למערכת - {user.FirstName} {user.LastName}")"
+                           class="email-link">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="2" fill="none" />
+                                <polyline points="22,6 12,13 2,6" stroke="currentColor" stroke-width="2" fill="none" />
+                            </svg>
+                            @ClientMail
+                        </a>
+                    </div>
+                </div>
+
+                <div class="form-buttons">
+                    <a href="/" class="btn btn-primary">חזרה לדף הבית</a>
+                    <button onclick="window.location.reload()" class="button btn-secondary">בדיקה אם אושרתי</button>
+                </div>
+
+                <div class="auth-footer">
+                    <span>רוצה להתנתק?</span>
+                    <a href="/logout" class="logout-link">התנתקות</a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    [CascadingParameter]
+    private User user { get; set; }
+
+    //כתובת מייל רשמית של הלקוח - לבקשת הרשאות
+    string ClientMail = "omerrazproject@gmail.com";
+}

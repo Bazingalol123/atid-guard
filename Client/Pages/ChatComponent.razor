@@ -1,0 +1,1879 @@
+﻿@page "/chat"
+@using AuthWithAdmin.Shared.ClientModels
+@using AuthWithAdmin.Client.ClientHelpers
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject ILogger<ChatComponent> Logger
+@inject AuthWithAdmin.Client.ClientHelpers.PopupService PopupService
+
+@* Fonts *@
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@300&icon_names=language,refresh" rel="stylesheet" />
+
+@* CSS *@
+<link href="css/chatComponent.css" rel="stylesheet" />
+
+<div class="chat-container ">
+    <div class="chat-header">
+     
+
+        <div class="d-flex col-12 justify-content-center" style="
+                position: relative;
+        ">
+
+            <img src="logo-chat.webp" class="image-logo ">
+            <h4 style=" 
+                            font-family: 'Assistant';
+                            color: #316197;
+                            align-self: center;
+                            position: relative;
+                            max-width: 3rem;                       
+                            top: 1vw;
+                            font-weight:400;">
+                @GetAppTitle()
+            </h4>
+        </div>   
+       <div id="chat-header-buttons"> 
+            <div class="header-button-wrapper">
+                <span @onclick="ResetChat" style="color:#55595C; cursor: pointer;">
+                    <i class="fa-solid fa-house"></i> 
+                    שיחה חדשה
+                </span>
+            </div>
+    
+            <div class="header-button-wrapper">
+                <span @onclick="OpenSearch" style="color:#55595C; cursor: pointer;">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    חיפוש
+                </span>
+            </div>
+    
+            <div class="header-button-wrapper">
+                <div class="dropdown">
+                    <span class="dropdown-toggle"
+                          style="color:#55595C; cursor: pointer;"
+                          data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fa-solid fa-globe"></i>
+                        @currentLanguage
+                    </span>
+
+                    <ul class="dropdown-menu dropdown-menu-center text-center p-2" style="min-width: 100%;">
+                        <li>
+                            <button class="dropdown-item @(currentLanguage == "עברית" ? "active fw-bold" : "")"
+                                    @onclick="@(() => SwitchLanguage("עברית"))">
+                                עברית
+                            </button>
+                        </li>
+                        <li>
+                            <button class="dropdown-item @(currentLanguage == "English" ? "active fw-bold" : "")"
+                                    @onclick="@(() => SwitchLanguage("English"))">
+                                English
+                            </button>
+                        </li>
+                        <li>
+                            <button class="dropdown-item @(currentLanguage == "Arabic" ? "active fw-bold" : "")"
+                                    @onclick="@(() => SwitchLanguage("Arabic"))">
+                                Arabic
+                            </button>
+                        </li>
+                    </ul>
+                </div>    
+            </div>
+        </div>
+       
+
+
+       
+    </div>
+
+            <div class="chat-separator"></div> <!-- Add this separator -->
+
+    <div class="chat-messages @CurrentDirection" id="chatMessages" @ref="chatMessagesElement">
+        @* Messages display section *@
+
+        @foreach (var (message, index) in chatMessages.Select((msg, i) => (msg, i)))
+        {
+            var isLastBotMessage = IsLastBotMessage(index);
+
+            @if (message.IsUser)
+            {
+                <div class="message user-message-container">
+                    <div class="user-message">
+                        @((MarkupString)message.Content)
+                    </div>
+
+                    @* Add the back button here if this is the last user message *@
+                    @if (IsLastUserMessage(index) && conversationHistory.Count > 0)
+                    {
+                        <button class="back-button" @onclick="GoBack">@((MarkupString)GetBackButtonText())</button>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="message bot-message-container @(isLastBotMessage ? "last-bot-message" : "")">
+                    <div class="bot-message">
+                        @((MarkupString)message.Content)
+                        @if (isLastBotMessage)
+                        {
+                            <div class="bot-icon-container">
+                                <img src="logo-chat.webp" class="message-icon" />
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        }
+
+
+        @* Loading indicator *@
+        @if (isLoading)
+        {
+            <div class="message">
+                <div class="bot-message">@GetLoadingText()<span class="loading"></span></div>
+            </div>
+        }
+
+
+        @* Options section *@
+        @if (currentOptions.Any())
+        {
+            var isWelcomeState = currentStateId == StateIds.Welcome;
+            <div id="@(isWelcomeState ? "classForIsWelcomeState" : "")">
+                <div class="@(isWelcomeState ? "categories-container" : "options-container")">
+                    @foreach (var option in currentOptions)
+                    {
+                        @if (isWelcomeState)
+                        {
+                            <div @onclick="() => HandleOptionClick(option)" class="category-button">
+                                @if (!string.IsNullOrEmpty(option.actionParams) && int.TryParse(option.actionParams, out int categoryId))
+                                {
+                                    var category = chatData?.Categories?.FirstOrDefault(c => c.ID == categoryId);
+                                    var imagePath = category?.image ?? "fallback-image.png";
+
+                                    <img src="@imagePath" />
+                                    <p>@option.text</p>
+                                }
+                                else
+                                {
+                                    <img src="fallback-image.png" />
+                                    <p>@option.text</p>
+                                }
+                            </div>
+                        }
+
+                        else
+                        {
+                            <button class="@GetButtonClass("option-button", option)"
+                            @onclick="() => HandleOptionClick(option)"
+                            disabled="@(isPdfDownloading && option == currentDownloadOption)">
+                                @if (option == downloadFailedOption && option.action == ActionTypes.DownloadPdf)
+                                {
+                                    <span style="color: red; display: flex; align-items: center; gap: 5px;">
+                                        <span><i class="fa-solid fa-xmark"></i>
+                                        </span>
+                                        @GetDownloadFailedText()
+                                    </span>
+                                }
+                                else if (option == downloadCompletedOption && option.action == ActionTypes.DownloadPdf)
+                                {
+                                    <span style="color: green;">    @GetDownloadSuccessText()</span>
+                                }
+                                else
+                                {
+                                    @((MarkupString)option.text)
+                                }
+                            </button>
+                        }
+
+                    }
+
+                </div>
+                @if (isWelcomeState)
+                {
+                    <div class="bot-icon-container">
+                        <img src="logo-chat.webp" class="message-icon" />
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <SearchComponent IsOpen="@isSearchOpen"
+    IsOpenChanged="@((value) => isSearchOpen = value)"
+    ChatData="@chatData"
+    CurrentLanguage ="@currentLanguage"
+    OnResultSelected="@HandleSearchResultSelected"
+    GetCategoryName="@GetCategoryName" />
+
+</div>
+
+
+
+@code {
+
+
+
+
+
+
+
+
+
+
+    // Replace your existing language variable
+    private string currentLanguage = "עברית"; // Default language
+
+    // Add this dictionary to determine text direction
+    private Dictionary<string, string> languageDirections = new Dictionary<string, string>
+{
+    { "עברית", "rtl" },
+    { "English", "ltr" },
+    { "Arabic", "rtl" }
+};
+
+    // Add this property to get current direction
+    private string CurrentDirection => languageDirections[currentLanguage];
+
+    // Replace your existing SwitchEditingLanguage method with this
+    private async Task SwitchLanguage(string language)
+    {
+        // Don't proceed if it's the same language
+        if (language == currentLanguage)
+            return;
+
+        // Use the PopupService to show a confirmation dialog
+        bool confirmed = await PopupService.ShowConfirmationAsync(new PopupOptions
+    {
+        Title = GetLanguageChangeConfirmationTitle(),
+        Message = GetLanguageChangeConfirmationMessage(language),
+        ConfirmText = GetConfirmButtonText(),
+        CancelText = GetCancelButtonText(),
+        ConfirmButtonClass = "button",
+        FooterClass = "confirmation-footer",
+        ContainerClass = "confirmation-container",
+        CurrentDirection = languageDirections[currentLanguage]
+
+
+
+    });
+
+        if (confirmed)
+        {
+            // User confirmed, proceed with language change
+            currentLanguage = language;
+
+            // Save preference to local storage
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "chatLanguage", language);
+
+            // Reset the chat
+            await ResetChat();
+        }
+        // If not confirmed, do nothing and stay on current language
+    }
+
+
+
+
+
+
+    private ElementReference chatMessagesElement; 
+
+
+
+
+
+    #region Models
+
+    // Local class for chat message display
+    public class ChatMessage
+    {
+        public string Content { get; set; }
+        public bool IsUser { get; set; }
+    }
+
+    private Categories categoryToShow = new Categories();
+
+    // State IDs as static class for better readability
+    private static class StateIds
+    {
+        public const int Welcome = 1;
+        public const int Questions = 2;
+        public const int NextSteps = 3;
+        public const int EndChat = 4;
+    }
+
+    // Action types as static class for better readability
+    private static class ActionTypes
+    {
+        public const string Navigate = "navigate";
+        public const string NextSteps = "next_steps";
+        public const string ShowAnswer = "showAnswer";
+        public const string FetchCategoryQuestions = "fetchCategoryQuestions";
+        public const string NewChat = "new_chat";
+        public const string EndChat = "end_chat";
+        public const string CallService = "call_service";
+        public const string DownloadPdf = "downloadPdf";
+        public const string GoBack = "go_back";
+        public const string CallPhone = "call_phone";
+        public const string AtidSite = "atid_site";
+        public const string OpenSearch = "open_search";
+        public const string BrowseCategories = "browse_categories";
+
+    }
+    public event Action OnClearMessages;
+    private bool isSearchOpen = false;
+
+    #endregion
+
+    #region State Properties
+
+    // UI state
+    private List<ChatMessage> chatMessages = new List<ChatMessage>();
+    private List<BotOptions> currentOptions = new List<BotOptions>();
+    private bool isLoading = false;
+
+    private bool isPdfDownloading = false;
+    private string currentPdfName = "";
+    private BotOptions currentDownloadOption = null; 
+    private BotOptions downloadCompletedOption = null; // Track which option completed download
+    private BotOptions downloadFailedOption = null; // Track which option failed
+
+
+
+    // Conversation state
+    private int currentStateId = StateIds.Welcome;
+    private List<ConversationHistoryEntry> conversationHistory = new List<ConversationHistoryEntry>();
+    private string currentContext = string.Empty;
+    private int currentQuestionId;
+
+
+    // Data 
+
+    private ChatDataModel chatData;
+
+    // Lookup dictionaries for efficient data access
+    private Dictionary<int, Questions> questionsById;
+    private Dictionary<int, int> questionToCategoryMap;
+    private Dictionary<int, string> categoryNameLookup; 
+    private Dictionary<int, string> pdfPathLookup; // Add this line
+
+
+    #endregion
+
+
+    #region Primitive Variables
+
+    private long maxFileSize = 4194304;
+    private string errorImg = string.Empty;
+    private bool isPhotoChanged = false;
+    private bool hasChanges = false;
+
+
+
+
+
+    #endregion
+
+
+
+
+    #region Translations!
+
+    private string GetAppTitle()
+    {
+        return currentLanguage switch
+        {
+            "English" => "Atid Guard",
+            "Arabic" => "مستقبل آمن",
+            _ => "עתיד בטוח" // Default Hebrew
+        };
+    }
+
+    private string GetLoadingText()
+    {
+        return currentLanguage switch
+        {
+            "English" => "Just a moment..",
+            "Arabic" => "لحظة من فضلك..",
+            _ => "עוד רגע.." // Default Hebrew
+        };
+    }
+
+    private string GetBrowseCategoriesText()
+    {
+        return currentLanguage switch
+        {
+            "English" => "Browse Other Categories",
+            "Arabic" => "تصفح فئات أخرى",
+            _ => "קטגוריות נוספות" // Hebrew default
+        };
+    }
+
+    private string GetBackButtonText()
+    {
+        return currentLanguage switch
+        {
+            "English" => "<i class='fa-solid fa-arrow-left' style='margin-left: 0.3rem;text-decoration:none;'></i> Change",
+            "Arabic" => "<i class='fa-solid fa-arrow-left' style='margin-left: 0.3rem; text-decoration:none;'></i> تغيير",
+            _ => "<i class='fa-solid fa-arrow-left' style='margin-left: 0.3rem; text-decoration:none;'></i>שינוי  " // Default Hebrew
+        };
+    }
+
+    private string GetDownloadFailedText()
+    {
+        return currentLanguage switch
+        {
+            "English" => "Download failed",
+            "Arabic" => "فشل التنزيل",
+            _ => "ההורדה נכשלה" // Default Hebrew
+        };
+    }
+
+    private string GetDownloadSuccessText()
+    {
+        return currentLanguage switch
+        {
+            "English" => "Downloaded successfully",
+            "Arabic" => "تم التنزيل بنجاح",
+            _ => "הורד בהצלחה" // Default Hebrew
+        };
+    }
+
+    private string GetLanguageChangeConfirmationTitle()
+    {
+        return currentLanguage switch
+        {
+            "English" => "Change Language",
+            "Arabic" => "تغيير اللغة",
+            _ => "שינוי שפה" // Default Hebrew
+        };
+    }
+
+    private string GetLanguageChangeConfirmationMessage(string newLanguage)
+    {
+        string languageName = newLanguage switch
+        {
+            "English" => currentLanguage == "English" ? "English" : currentLanguage == "Arabic" ? "الإنجليزية" : "אנגלית",
+            "Arabic" => currentLanguage == "English" ? "Arabic" : currentLanguage == "Arabic" ? "العربية" : "ערבית",
+            _ => currentLanguage == "English" ? "Hebrew" : currentLanguage == "Arabic" ? "العبرية" : "עברית" // Default Hebrew
+        };
+
+        return currentLanguage switch
+        {
+            "English" => $"Changing to {languageName} will delete the current conversation. Do you want to continue?",
+            "Arabic" => $"التغيير إلى {languageName} سيحذف المحادثة الحالية. هل تريد المتابعة؟",
+            _ => $"המעבר ל{languageName} ימחק את השיחה הנוכחית. האם לשנות?" // Default Hebrew
+        };
+    }
+
+    private string GetConfirmButtonText()
+    {
+        return currentLanguage switch
+        {
+            "English" => "Continue",
+            "Arabic" => "تغيير",
+            _ => "שינוי" // Default Hebrew
+        };
+    }
+
+    private string GetCancelButtonText()
+    {
+        return currentLanguage switch
+        {
+            "English" => "Cancel",
+            "Arabic" => "إلغاء",
+            _ => "ביטול" // Default Hebrew
+        };
+    }
+private string GetThankYouMessage()
+{
+    return currentLanguage switch
+    {
+        "English" => "The chat may have ended, but my door always stays open for you 🙂 You can start a new conversation, visit the Atid Association website, or contact the hotline directly.<br/>Have a wonderful night and golden dreams for you and your baby!",
+        "Arabic" => "ربما انتهت الدردشة، لكن بابي يبقى مفتوحاً لك دائماً 🙂 يمكنك بدء محادثة جديدة، أو زيارة موقع جمعية عتيد، أو الاتصال المباشر بالخط الساخن.<br/>ليلة سعيدة وأحلام ذهبية لك ولطفلك!",
+        _ => "הצ'אט אולי הסתיים, אבל הדלת שלי תמיד נשארת פתוחה עבורך 🙂 אפשר להתחיל שיחה חדשה, לעבור לאתר של עמותת עתיד, או לפנות ישירות למוקד הטלפוני של הקו החם.<br/>לילה נעים וחלומות פז לך ולבייבי שלך!" // Hebrew default
+    };
+}
+
+    private string GetHotlineText()
+    {
+        return currentLanguage switch
+        {
+            "English" => "<i class='fa-solid fa-phone' style='color: #e51876'></i> Phone contact to hotline",
+            "Arabic" => "<i class='fa-solid fa-phone' style='color: #e51876'></i> اتصال هاتفي للخط الساخن",
+            _ => "<i class='fa-solid fa-phone' style='color: #e51876'></i> פנייה טלפונית לקו החם" // Default Hebrew
+        };
+    }
+
+    private string GetWebsiteText()
+    {
+        return currentLanguage switch
+        {
+            "English" => "Atid Association Website",
+            "Arabic" => "موقع جمعية عتيد",
+            _ => "אתר עמותת עתיד" // Default Hebrew
+        };
+    }
+
+    private string GetNoQuestionsText()
+    {
+        return currentLanguage switch
+        {
+            "English" => "Sorry, there are no questions available for this category yet.",
+            "Arabic" => "عذرا، لا توجد أسئلة متاحة لهذه الفئة حتى الآن.",
+            _ => "מצטער, אין עדיין שאלות זמינות עבור קטגוריה זו." // Default Hebrew
+        };
+    }
+
+    private string GetBackToCategoriesText()
+    {
+        return currentLanguage switch
+        {
+            "English" => "Back to Categories",
+            "Arabic" => "العودة إلى الفئات",
+            _ => "חזרה לקטגוריות" // Default Hebrew
+        };
+    }
+
+    private string GetEndChatText()
+    {
+        return currentLanguage switch
+        {
+            "English" => "End Chat",
+            "Arabic" => "إنهاء المحادثة",
+            _ => "סיום שיחה" // Default Hebrew
+        };
+    }
+
+    private string GetWouldLikeToContactText()
+    {
+        return currentLanguage switch
+        {
+            "English" => "I would love to contact the Hot Lin",
+            "Arabic" => "أرغب في الاتصال بالخط الساخن",
+            _ => "אשמח ליצור קשר עם הקו החם.?" // Default Hebrew
+        };
+    }
+
+    private string GetReadMoreText()
+    {
+        return currentLanguage switch
+        {
+            "English" => "Read More",
+            "Arabic" => "قراءة المزيد",
+            _ => "לקריאה רחבה" // Default Hebrew
+        };
+    }
+
+    private string GetWhatNextText()
+    {
+        return currentLanguage switch
+        {
+            "English" => "What happens next?",
+            "Arabic" => "ماذا يحدث بعد ذلك؟",
+            _ => "מה נעשה בפועל?" // Default Hebrew
+        };
+    }
+
+    private string GetHelpMoreText()
+    {
+        return currentLanguage switch
+        {
+            "English" => "Can I help you with anything else?",
+            "Arabic" => "هل يمكنني مساعدتك في أي شيء آخر؟",
+            _ => "אוכל לעזור לך במשהו נוסף?" // Default Hebrew
+        };
+    }
+
+    private string GetFinishedText()
+    {
+        return currentLanguage switch
+        {
+            "English" => "Start new chat",
+            "Arabic" => "بدء محادثة جديدة",
+            _ => "שיחה חדשה" // Default Hebrew
+        };
+    }
+
+    private string GetCallingText(string phoneNumber)
+    {
+        return currentLanguage switch
+        {
+            "English" => "I'm finished, thank you",
+            "Arabic" => "لقد انتهيت، شكرًا لك",
+            _ => $"מתקשר למספר {phoneNumber}.<br/>אם השיחה לא התחילה באופן אוטומטי, אנא לחץ על המספר: <a href='tel:{phoneNumber}'>{phoneNumber}</a>" // Default Hebrew
+        };
+    }
+    private string GetOpeningWebsite(string url)
+    {
+        return currentLanguage switch
+        {
+            "English" => $"Opening the Atid Association website.<br/>If the site does not open automatically, please click the link: <a href='{url}' target='_blank'>Atid Association</a>",
+
+            "Arabic" => $"يتم فتح موقع جمعية عتيد.<br/>إذا لم يتم فتح الموقع تلقائيًا، يرجى النقر على الرابط: <a href='{url}' target='_blank'>جمعية عتيد</a>",
+
+            _ => $"פותח את אתר עמותת עתיד.<br/>אם האתר לא נפתח באופן אוטומטי, אנא לחץ על הקישור: <a href='{url}' target='_blank'>עמותת עתיד</a>" // Default Hebrew
+        };
+    }
+
+
+    #endregion
+
+    #region Lifecycle Methods
+
+    protected override async Task OnInitializedAsync()
+    {
+        Logger.LogInformation("Initializing chat component...");
+
+        await LoadAllChatData();
+        BuildLookupDictionaries();
+        await DisplayState(currentStateId);
+    }
+
+    #endregion
+
+    #region Data Loading and Initialization
+
+    private async Task LoadAllChatData()
+    {
+        try
+        {
+            Logger.LogInformation("Loading all chat data...");
+            SetLoadingState(true);
+
+            var response = await Http.GetAsync("api/Chat/GetAllData");
+            response.EnsureSuccessStatusCode();
+            chatData = await response.Content.ReadFromJsonAsync<ChatDataModel>();
+
+            Logger.LogInformation($"Successfully loaded {chatData.States.Count} states, " +
+                                  $"{chatData.Categories.Count} categories, " +
+                                  $"questions for {chatData.Questions.Count} categories");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error loading chat data: {ex.Message}");
+            AddBotMessage("I'm having trouble loading my knowledge base. Please try refreshing the page.");
+        }
+        finally
+        {
+            SetLoadingState(false);
+        }
+    }
+
+    private void BuildLookupDictionaries()
+    {
+        // Create a lookup for questions by ID
+        questionsById = new Dictionary<int, Questions>();
+        questionToCategoryMap = new Dictionary<int, int>();
+        categoryNameLookup = new Dictionary<int, string>();
+        pdfPathLookup = new Dictionary<int, string>(); 
+
+
+        // Build lookups from chatData
+        if (chatData != null)
+        {
+            // Build category name lookup
+            if (chatData.Categories != null)
+            {
+                foreach (var category in chatData.Categories)
+                {
+                    categoryNameLookup[category.ID] = category.categoryName;
+                }
+            }
+
+            // Build question lookups
+            if (chatData.Questions != null)
+            {
+                foreach (var categoryQuestions in chatData.Questions)
+                {
+                    int categoryId = categoryQuestions.Key;
+
+                    foreach (var question in categoryQuestions.Value)
+                    {
+                        questionsById[question.Id] = question;
+                        questionToCategoryMap[question.Id] = categoryId;
+                        if (!string.IsNullOrEmpty(question.pdfPath))
+                        {
+                            pdfPathLookup[question.Id] = question.pdfPath;
+
+                            Console.WriteLine(pdfPathLookup);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #endregion
+
+    #region State Display Methods
+
+    private async Task DisplayState(int stateId)
+    {
+        try
+        {
+            Logger.LogInformation($"Displaying state {stateId}...");
+            SetLoadingState(true);
+
+            await Task.Delay(500);
+
+            if (chatData?.States != null && chatData.States.TryGetValue(stateId, out var state))
+            {
+                // For questions state, only show content if we're not immediately going to show category questions
+                if (stateId != StateIds.Questions || string.IsNullOrEmpty(currentContext))
+                {
+                    // Get the appropriate content based on the current language
+                    string stateContent = currentLanguage switch
+                    {
+                        "English" => !string.IsNullOrEmpty(state.contentEN) ? state.contentEN : state.content,
+                        "Arabic" => !string.IsNullOrEmpty(state.contentAR) ? state.contentAR : state.content,
+                        _ => state.content // Default to Hebrew
+                    };
+
+                    AddBotMessage(stateContent);
+                }
+
+                // Handle different state types
+                if (state.type == "welcome")
+                {
+                    DisplayCategories();
+                }
+                else if (state.Options != null && state.Options.Any())
+                {
+                    currentOptions = state.Options;
+                }
+                else
+                {
+                    // If no options are available, provide a way to go back
+                    currentOptions = new List<BotOptions>
+                {
+                    new BotOptions
+                    {
+                        text = GetBackToCategoriesText(),
+                        action = ActionTypes.Navigate,
+                        nextStateId = StateIds.Welcome
+                    }
+                };
+                }
+            }
+            else
+            {
+                AddBotMessage("I couldn't find the information you requested.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error displaying state: {ex.Message}");
+            AddBotMessage("I encountered an error while retrieving information.");
+        }
+        finally
+        {
+            SetLoadingState(false);
+        }
+    }
+    private void DisplayCategories()
+    {
+        if (chatData?.Categories == null || !chatData.Categories.Any())
+        {
+            // Localized message for no categories
+            string noCategories = currentLanguage switch
+            {
+                "English" => "No categories found.",
+                "Arabic" => "لم يتم العثور على فئات.",
+                _ => "לא נמצאו קטגוריות." // Hebrew default
+            };
+
+            AddBotMessage(noCategories);
+            return;
+        }
+
+        // Convert categories to option buttons with language-specific text
+        currentOptions = chatData.Categories.Select(c => new BotOptions
+        {
+            // Choose text based on current language
+            text = currentLanguage switch
+            {
+                "English" => !string.IsNullOrEmpty(c.categoryNameEN) ? c.categoryNameEN : c.categoryName,
+                "Arabic" => !string.IsNullOrEmpty(c.categoryNameAR) ? c.categoryNameAR : c.categoryName,
+                _ => c.categoryName // Hebrew default
+            },
+            action = ActionTypes.FetchCategoryQuestions,
+            actionParams = c.ID.ToString()
+        }).ToList();
+    }
+
+    private async Task DisplayCategoriesWithoutReset()
+    {
+        try
+        {
+            Logger.LogInformation("Displaying categories without reset...");
+            SetLoadingState(true);
+
+            await Task.Delay(500);
+
+
+            // Set state to welcome for proper category display
+            currentStateId = StateIds.Welcome;
+
+            // Display categories
+            DisplayCategories();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error displaying categories: {ex.Message}");
+            AddBotMessage("I had trouble loading the categories.");
+        }
+        finally
+        {
+            SetLoadingState(false);
+        }
+    }
+
+
+    private string FormatMessageWithLineBreaks(string content)
+    {
+        if (string.IsNullOrEmpty(content))
+            return content;
+
+        // Replace all types of line breaks with <br> tags
+        // This handles both Windows (\r\n) and Unix (\n) style line breaks
+        return content.Replace("\r\n", "<br>").Replace("\n", "<br>");
+    }
+
+    private async Task DisplayCategoryQuestions(string categoryIdStr)
+    {
+        try
+        {
+            if (!int.TryParse(categoryIdStr, out int categoryId))
+            {
+                AddBotMessage("I couldn't find questions for that category.");
+                return;
+            }
+
+            Logger.LogInformation($"Displaying questions for category {categoryId}...");
+            SetLoadingState(true);
+
+            // Show typing animation
+            await Task.Delay(500);
+
+            // Get localized category name
+            string categoryName = GetCategoryName(categoryId);
+
+            // Display localized prompt with the category name
+            string promptText = currentLanguage switch
+            {
+                "English" => $"Here's the information I have about <strong>{categoryName}</strong>",
+                "Arabic" => $"إليك المعلومات المتوفرة لدي حول <strong>{categoryName}</strong>",
+                _ => $"המידע שיש לי בנושא <strong>{categoryName}</strong>" // Hebrew default
+            };
+
+            AddBotMessage(promptText);
+            currentStateId = StateIds.Questions;
+
+            // Check if we have questions for this category
+            if (chatData.Questions.TryGetValue(categoryId, out var questions) && questions.Any())
+            {
+                // Create question options with localized question text
+                currentOptions = questions.Select(q => new BotOptions
+                    {
+                        text = GetQuestionText(q), // Get localized question text
+                        action = ActionTypes.ShowAnswer,
+                        actionParams = q.Id.ToString()
+                    }).ToList();
+
+                string openSearchQuestionText = currentLanguage switch
+                {
+                    "English" => "<i class='fa-solid fa-magnifying-glass' style='color:#55595C;margin-left:0.3rem;'></i> Didn't find what you were looking for? You can also search here ",
+                    "Arabic" => "<i class='fa-solid fa-magnifying-glass' style='color:#55595C;margin-left:0.3rem;'></i> لم تجد ما كنت تبحث عنه؟ يمكن البحث أيضاً هنا ",
+                    _ => " <i class='fa-solid fa-magnifying-glass' style='color:#55595C; margin-left:0.3rem;'></i> לא מצאת את מה שחיפשת? אפשר לחפש גם כאן" // Hebrew default
+                };
+                currentOptions.Add(new BotOptions
+                {
+                    text = openSearchQuestionText,
+                    action = ActionTypes.OpenSearch,
+                });
+
+                currentOptions.Add(new BotOptions
+                    {
+                        text = GetBrowseCategoriesText(),
+                        action = ActionTypes.BrowseCategories,
+                        actionParams = ""
+                    });
+                
+
+                     string endChatText = currentLanguage switch
+                    {
+                        "English" => "End Chat",
+                        "Arabic" => "إنهاء المحادثة",
+                        _ => "סיום שיחה"
+                    };
+
+                    currentOptions.Add(new BotOptions
+                        {
+                            text = endChatText,
+                            nextStateId = StateIds.EndChat,
+                            action = ActionTypes.EndChat,
+                        });
+
+
+
+            }
+            else
+            {
+                // No questions message
+                AddBotMessage("Sorry, there are no questions available for this category yet.");
+
+                // Add option to go back
+                string backText = currentLanguage switch
+                {
+                    "English" => "Back to Categories",
+                    "Arabic" => "العودة إلى الفئات",
+                    _ => "חזרה לקטגוריות" // Hebrew default
+                };
+
+                currentOptions = new List<BotOptions>
+            {
+                new BotOptions
+                {
+                    text = backText,
+                    action = ActionTypes.Navigate,
+                    nextStateId = StateIds.Welcome
+                }
+            };
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error displaying category questions: {ex.Message}");
+            AddBotMessage("I had trouble retrieving the questions for this category.");
+        }
+        finally
+        {
+            SetLoadingState(false);
+        }
+    }
+    private class ConversationHistoryEntry
+    {
+        public int StateId { get; set; }
+        public string Context { get; set; }
+        public List<ChatMessage> Messages { get; set; } = new List<ChatMessage>();
+        public List<BotOptions> Options { get; set; } = new List<BotOptions>(); // Add this line
+    }
+
+    private async Task DisplayQuestionAnswer(int questionId)
+    {
+        try
+        {
+            Logger.LogInformation($"Displaying answer for question {questionId}...");
+            SetLoadingState(true);
+
+            // Show typing animation
+            await Task.Delay(500);
+
+            // Use lookups for efficient data access
+            if (questionsById.TryGetValue(questionId, out var question))
+            {
+                // Get category information using lookup
+                int categoryId = GetQuestionCategoryId(questionId);
+                string categoryName = GetCategoryName(categoryId);
+
+                // Show the localized answer
+                AddBotMessage(GetAnswerText(question));
+
+               
+                // Get PDF path
+                string pdfPath = GetPdfPath(questionId);
+
+                // Create options list
+                var options = new List<BotOptions>();
+
+
+                 // "What happens next" option if available
+                if (!string.IsNullOrEmpty(GetNextStepText(question)))
+                {
+                     string callToAction = currentLanguage switch
+                {
+                    "English" => "<i class='fa-solid fa-lightbulb' style='color: #FFCE00;'></i>  Want to know how to implement this in a simple and safe way? Click <strong>'What do we do in practice?'</strong> to see exactly what to do.",
+                    "Arabic" => "<i class='fa-solid fa-lightbulb' style='color: #FFCE00;'></i>  تريدين معرفة كيفية تطبيق هذا بطريقة بسيطة وآمنة؟ اضغطي على <strong>'ماذا نفعل عملياً؟'</strong> لترى بالضبط ما يجب فعله.",
+                    _ => "<i class='fa-solid fa-lightbulb' style='color: #FFCE00;'></i> רוצה לדעת איך מיישמים את זה בצורה פשוטה ובטוחה? לחיצה על <strong>\"מה נעשה בפועל?\"</strong> תראה לך בדיוק מה לעשות." // Hebrew default
+                };
+                AddBotMessage(callToAction);
+
+                    string whatNextText = currentLanguage switch
+                    {
+                        "English" => "What do we do in practice?",
+                        "Arabic" => "ماذا نفعل عملياً؟",
+                        _ => "מה נעשה בפועל?" // Hebrew default
+                    };
+
+                    options.Add(new BotOptions
+                {
+                    text = whatNextText,
+                    nextStateId = StateIds.NextSteps,
+                    action = ActionTypes.NextSteps,
+                    actionParams = questionId.ToString()
+                });
+                }
+
+                // Conditional PDF option
+                if (!string.IsNullOrEmpty(pdfPath))
+                {
+               string readMoreText = currentLanguage switch
+{
+    "English" => "Download expanded file <i class='fa-solid fa-download' style='margin-right:0.3rem; color: #55595C;'></i>",
+    "Arabic" => " <i class='fa-solid fa-download' style='margin-left:0.3rem; color: #55595C;'></i>تحميل ملف موسع  ",
+    _ => " <i class='fa-solid fa-download' style='margin-left:0.3rem; color: #55595C;'></i>להורדת קובץ להרחבה  " // Hebrew default - icon first
+};
+
+                    options.Add(new BotOptions
+                {
+                    text = readMoreText,
+                    nextStateId = currentStateId,
+                    action = ActionTypes.DownloadPdf,
+                    actionParams = pdfPath
+                });
+                }
+
+                     // "More questions" option
+                    string moreQuestionsText = currentLanguage switch
+                    {
+                        "English" => $"Additional questions in {categoryName}",
+                        "Arabic" => $"أسئلة إضافية في {categoryName}",
+                        _ => $"שאלות נוספות ב{categoryName}" // Hebrew default
+                    };
+
+                options.Add(new BotOptions
+            {
+                text = moreQuestionsText,
+                nextStateId = StateIds.Questions,
+                action = ActionTypes.FetchCategoryQuestions,
+                actionParams = categoryId.ToString()
+            });
+
+                options.Add(new BotOptions
+                {
+                    text = GetBrowseCategoriesText(),
+                    action = ActionTypes.BrowseCategories,
+                    actionParams = ""
+                });
+
+               
+               
+                    string endChatText = currentLanguage switch
+                    {
+                        "English" => "End Chat",
+                        "Arabic" => "إنهاء المحادثة",
+                        _ => "סיום שיחה"
+                    };
+
+                    options.Add(new BotOptions
+                        {
+                            text = endChatText,
+                            nextStateId = StateIds.EndChat,
+                            action = ActionTypes.EndChat,
+                            actionParams = questionId.ToString()
+                        });
+
+
+                
+
+               
+
+
+
+
+                currentOptions = options;
+            }
+            else
+            {
+                AddBotMessage("I couldn't find the answer to that question.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error displaying question answer: {ex.Message}");
+            AddBotMessage("I had trouble retrieving that answer.");
+        }
+        finally
+        {
+            SetLoadingState(false);
+        }
+    }
+    private async Task DisplayNextSteps(string questionIdStr)
+    {
+        try
+        {
+            if (!int.TryParse(questionIdStr, out int questionId))
+            {
+                string errorMessage = currentLanguage switch
+                {
+                    "English" => "I couldn't find the next steps information.",
+                    "Arabic" => "لم أتمكن من العثور على معلومات الخطوات التالية.",
+                    _ => "לא הצלחתי למצוא את מידע השלבים הבאים."
+                };
+
+                AddBotMessage(errorMessage);
+                return;
+            }
+
+            Logger.LogInformation($"Displaying next steps for question {questionId}...");
+            SetLoadingState(true);
+
+            // Show typing animation
+            await Task.Delay(500);
+
+            // Get category information using lookup
+            int categoryId = GetQuestionCategoryId(questionId);
+            string categoryName = GetCategoryName(categoryId);
+
+            // Get question object to access translated next steps
+            var question = questionsById.TryGetValue(questionId, out var q) ? q : null;
+
+            if (question != null && !string.IsNullOrEmpty(GetNextStepText(question)))
+            {
+                // Display localized next steps
+                AddBotMessage(GetNextStepText(question));
+            }
+            else if (chatData.nextSteps.TryGetValue(questionId, out string nextStepsContent))
+            {
+                // Fallback to using nextSteps dictionary if available
+                AddBotMessage(nextStepsContent);
+            }
+            else
+            {
+                string noNextSteps = currentLanguage switch
+                {
+                    "English" => "I don't have specific next steps for this topic.",
+                    "Arabic" => "ليس لدي خطوات محددة لهذا الموضوع.",
+                    _ => "אין לי שלבים ספציפיים לנושא זה."
+                };
+
+                AddBotMessage(noNextSteps);
+            }
+
+            // Add localized "Can I help with anything else?" message
+            string helpMore = currentLanguage switch
+            {
+                "English" => "Can I help you with anything else?",
+                "Arabic" => "هل يمكنني مساعدتك في أي شيء آخر؟",
+                _ => "אוכל לעזור לך במשהו נוסף?"
+            };
+
+            AddBotMessage(helpMore);
+
+            // Create localized buttons
+           string readMoreText = currentLanguage switch
+            {
+                "English" => "Download expanded file <i class='fa-solid fa-download' style='margin-right:0.3rem;'></i>",
+                "Arabic" => " <i class='fa-solid fa-download' style='margin-left:0.3rem;'></i>تحميل ملف موسع  ",
+                _ => " <i class='fa-solid fa-download' style='margin-left:0.3rem;'></i>להורדת קובץ להרחבה  " // Hebrew default - icon first
+            };
+
+                string moreQuestionsText = currentLanguage switch
+            {
+                "English" => $"Additional questions in {categoryName}",
+                "Arabic" => $"أسئلة إضافية في {categoryName}",
+                _ => $"שאלות נוספות ב{categoryName}" // Hebrew default
+            };
+
+            string endChatText = currentLanguage switch
+            {
+                "English" => "End Chat",
+                "Arabic" => "إنهاء المحادثة",
+                _ => "סיום שיחה"
+            };
+
+            currentOptions = new List<BotOptions>
+        {
+            new BotOptions
+            {
+                text = readMoreText,
+                nextStateId = currentStateId,
+                action = ActionTypes.DownloadPdf,
+                actionParams = GetPdfPath(questionId)
+            },
+            new BotOptions
+            {
+                text = moreQuestionsText,
+                nextStateId = StateIds.Questions,
+                action = ActionTypes.FetchCategoryQuestions,
+                actionParams = categoryId.ToString()
+            },
+             new BotOptions
+                {
+                    text = GetBrowseCategoriesText(),
+                    action = ActionTypes.BrowseCategories,
+                    actionParams = ""
+                },
+            new BotOptions
+            {
+                text = endChatText,
+                nextStateId = StateIds.EndChat,
+                action = ActionTypes.EndChat,
+                actionParams = questionId.ToString()
+            }
+        };
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error displaying next steps: {ex.Message}");
+
+            string errorMessage = currentLanguage switch
+            {
+                "English" => "I had trouble retrieving the next steps information.",
+                "Arabic" => "واجهت مشكلة في استرجاع معلومات الخطوات التالية.",
+                _ => "נתקלתי בבעיה בהשגת מידע השלבים הבאים."
+            };
+
+            AddBotMessage(errorMessage);
+        }
+        finally
+        {
+            SetLoadingState(false);
+        }
+    }
+
+    #endregion
+
+    #region User Interaction Handlers
+
+    private async Task HandleOptionClick(BotOptions option)
+    {
+        Logger.LogInformation($"Handling option click: {option.action} - {option.text}");
+
+        if (option.action == ActionTypes.DownloadPdf)
+        {
+            currentDownloadOption = option; 
+
+            await DownloadCurrentPdf(option.actionParams);
+            return;
+        }
+
+        else if (option.action == ActionTypes.CallPhone)
+        {
+            await MakePhoneCall(option.actionParams); // Example phone number
+            return;
+        }
+        else if (option.action == ActionTypes.AtidSite)
+        {
+            await OpenWebsite(option.actionParams);
+            return;
+        }
+        downloadCompletedOption = null;
+        downloadFailedOption = null;
+
+        currentDownloadOption = null;
+        // Save current state, context, and messages to history
+        conversationHistory.Add(new ConversationHistoryEntry
+            {
+                StateId = currentStateId,
+                Context = currentContext,
+                Messages = new List<ChatMessage>(chatMessages), // Make a copy of current messages
+                Options = new List<BotOptions>(currentOptions)
+            });
+
+        if(option.action != ActionTypes.OpenSearch)
+        {
+            AddUserMessage(option.text);
+            currentOptions = new List<BotOptions>();
+            StateHasChanged();
+        }
+
+        // Clear current options while processing
+
+
+        // Process different action types
+        switch (option.action)
+        {
+            case ActionTypes.GoBack:
+                GoBack();
+                break;
+
+            case ActionTypes.Navigate:
+                currentStateId = option.nextStateId;
+                currentContext = string.Empty; // Reset context on navigation
+                if (currentStateId == StateIds.Welcome)
+                {
+                    // Clear messages when navigating to welcome state
+                    chatMessages.Clear();
+                }
+                await DisplayState(currentStateId);
+                break;
+
+            case ActionTypes.NextSteps:
+                await DisplayNextSteps(option.actionParams);
+                break;
+
+            case ActionTypes.ShowAnswer:
+                if (int.TryParse(option.actionParams, out int questionId))
+                {
+                    currentContext = questionId.ToString(); // Save question ID as context
+                    await DisplayQuestionAnswer(questionId);
+                }
+                break;
+
+            case ActionTypes.FetchCategoryQuestions:
+                currentContext = option.actionParams; // Save category ID as context
+                await DisplayCategoryQuestions(option.actionParams);
+                break;
+
+            case ActionTypes.NewChat:
+                await ResetChat();
+                break;
+
+            case ActionTypes.EndChat:
+                ShowCallServiceButtons();
+                break;
+
+            case ActionTypes.CallService:
+                AddBotMessage(GetThankYouMessage());
+                ShowCallServiceButtons();
+                break;
+
+            case ActionTypes.OpenSearch:
+                OpenSearch();
+                break;
+
+            // Add this case in the switch statement inside HandleOptionClick method:
+            case ActionTypes.BrowseCategories:
+                await DisplayCategoriesWithoutReset();
+                break;
+            default:
+                AddBotMessage("I'm not sure how to handle that request. Let's go back to the main topics.");
+                await DisplayState(StateIds.Welcome);
+                break;
+        }
+    }
+
+    private async void GoBack()
+    {
+        if (conversationHistory.Count > 0)
+        {
+            // Get the previous entry from history
+            var previousEntry = conversationHistory.Last();
+            conversationHistory.RemoveAt(conversationHistory.Count - 1);
+
+            // Restore everything from the previous entry
+            currentStateId = previousEntry.StateId;
+            currentContext = previousEntry.Context;
+            currentOptions = previousEntry.Options;
+
+            // Replace the current messages with the saved ones
+            chatMessages.Clear();
+
+            // Format any bot messages before adding them back
+            foreach (var msg in previousEntry.Messages)
+            {
+                if (!msg.IsUser)
+                {
+                    // Apply formatting to bot messages
+                    msg.Content = FormatMessageWithLineBreaks(msg.Content);
+                }
+            }
+
+            chatMessages.AddRange(previousEntry.Messages);
+
+            // IMPORTANT: Restore the saved options instead of regenerating them
+            currentOptions = new List<BotOptions>(previousEntry.Options);
+
+            // No need to regenerate options - they're already restored from history
+            StateHasChanged();
+        }
+    }
+
+
+    private void ShowPdfModal(string pdfPath)
+    {
+        try
+        {
+            Logger.LogInformation($"Showing PDF Modal for PDF: {pdfPath}");
+
+            // Store the PDF path directly
+            currentPdfName = pdfPath;
+
+            // Extract question ID if needed for other operations
+            if (int.TryParse(pdfPath.Replace("question_", "").Replace(".pdf", ""), out int questionId))
+            {
+                currentQuestionId = questionId;
+            }
+            else
+            {
+                // If pdfPath doesn't match the expected format, it's likely a direct path
+                // Just use it as is and try to find the question ID from context if needed
+                if (!string.IsNullOrEmpty(currentContext) && int.TryParse(currentContext, out questionId))
+                {
+                    currentQuestionId = questionId;
+                }
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error showing PDF modal: {ex.Message}");
+        }
+    }
+    private string GetPdfPath(int questionId)
+    {
+        if (!questionsById.TryGetValue(questionId, out var question))
+            return null;
+
+        // Return the appropriate PDF path based on the current language
+        return currentLanguage switch
+        {
+            "English" => !string.IsNullOrEmpty(question.pdfPathEN) ? 
+                         question.pdfPathEN : question.pdfPath,
+
+            "Arabic" => !string.IsNullOrEmpty(question.pdfPathAR) ? 
+                        question.pdfPathAR : question.pdfPath,
+
+            _ => question.pdfPath // Default to Hebrew
+        };
+    }
+
+    private void ClosePdfModal()
+    {
+        StateHasChanged();
+    }
+
+    #endregion
+
+    #region Helper Methods
+    private async Task DownloadCurrentPdf(string pdfPath)
+    {
+        try
+        {
+            // Set downloading state to true
+            SetDownloadState(true);
+            await Task.Delay(1200);
+
+            // Use the stored PDF path directly from currentPdfName
+            if (!string.IsNullOrEmpty(pdfPath) && pdfPath != "null")
+            {
+                await JSRuntime.InvokeVoidAsync("downloadFile", pdfPath);
+
+                // Download completed - set the success state
+                downloadCompletedOption = currentDownloadOption;
+                downloadFailedOption = null; // Clear any failure state
+                StateHasChanged();
+
+                // Wait 1500ms and then reset
+                await Task.Delay(1500);
+                downloadCompletedOption = null;
+                StateHasChanged();
+            }
+            else
+            {
+                // PDF does not exist - set the failure state
+                downloadFailedOption = currentDownloadOption;
+                downloadCompletedOption = null; // Clear any success state
+                StateHasChanged();
+                SetDownloadState(false);
+
+                // Wait 1500ms and then reset
+                await Task.Delay(1500);
+                downloadFailedOption = null;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error downloading PDF: {ex.Message}");
+
+            // Handle error - set the failure state
+            downloadFailedOption = currentDownloadOption;
+            downloadCompletedOption = null;
+            StateHasChanged();
+
+            // Wait 1500ms and then reset
+            await Task.Delay(1500);
+            downloadFailedOption = null;
+            StateHasChanged();
+        }
+        finally
+        {
+            // Set downloading state back to false
+            currentDownloadOption = null;
+        }
+    }
+
+    // Helper method to manage download state
+    private void SetDownloadState(bool isDownloading)
+    {
+        isPdfDownloading = isDownloading;
+        StateHasChanged();
+    }
+
+    // Method to get the correct button class
+    private string GetButtonClass(string baseClass, BotOptions option)
+    {
+        // Only show downloading state for the current downloading PDF button
+        if (option == currentDownloadOption && isPdfDownloading)
+        {
+            return $"{baseClass} downloading";
+        }
+        return baseClass;
+    }
+
+    private void AddBotMessage(string message)
+    {
+        string formattedMessage = FormatMessageWithLineBreaks(message);
+        chatMessages.Add(new ChatMessage { Content = formattedMessage, IsUser = false });
+        StateHasChanged();
+    }
+
+    private void AddUserMessage(string message)
+    {
+        chatMessages.Add(new ChatMessage { Content = message, IsUser = true });
+        StateHasChanged();
+    }
+    private bool IsLastUserMessage(int index)
+    {
+        for (int i = index + 1; i < chatMessages.Count; i++)
+        {
+            if (chatMessages[i].IsUser)
+            {
+                return false;
+            }
+        }
+        return chatMessages[index].IsUser;
+    }
+    private bool IsLastBotMessage(int index)
+    {
+        // If we're at the welcome state (showing categories),
+        // don't show the icon on the last text message
+        if (currentStateId == StateIds.Welcome && !chatMessages[index].IsUser)
+        {
+            return false;
+        }
+
+        // For all other states, show the icon on the last bot message
+        if (!chatMessages[index].IsUser)
+        {
+            for (int i = index + 1; i < chatMessages.Count; i++)
+            {
+                if (!chatMessages[i].IsUser)
+                {
+                    return false; // Another bot message exists after this one
+                }
+            }
+            return true; // This is the last bot message
+        }
+        return false;
+    }
+
+    private void SetLoadingState(bool loading)
+    {
+        isLoading = loading;
+        StateHasChanged();
+    }
+
+    private async Task ResetChat()
+    {
+        chatMessages.Clear();
+        currentOptions.Clear();
+        conversationHistory.Clear();
+        currentStateId = StateIds.Welcome;
+
+        await LoadAllChatData();
+        BuildLookupDictionaries();
+        await DisplayState(currentStateId);
+
+    }
+
+    private void ShowEndChatOptions()
+    {
+        AddBotMessage("באישור כאן נסיים את השיחה שלנו, ונוכל להתחיל שיחה חדשה.");
+        currentOptions = new List<BotOptions>
+        {
+            new BotOptions
+            {
+                text = GetWouldLikeToContactText(),
+                action = ActionTypes.CallService,
+                actionParams = ""
+            },
+            new BotOptions
+            {
+                text = GetFinishedText(),
+                action = ActionTypes.NewChat,
+                actionParams = ""
+            },
+
+             new BotOptions
+            {
+                text = "חזרה",
+                action = ActionTypes.GoBack,
+                actionParams = ""
+            }
+        };
+    }
+    private void ShowCallServiceButtons()
+    {
+        AddBotMessage(GetThankYouMessage());        
+        currentOptions = new List<BotOptions>
+    {
+        new BotOptions
+        {
+            text = GetHotlineText(),
+            action = ActionTypes.CallPhone,
+            actionParams = "026666833" // Pass phone number as a parameter
+        },
+        new BotOptions
+        {
+            text = GetWebsiteText(),
+            action = ActionTypes.AtidSite,
+            actionParams = "https://atidbaby.org/" // Pass website URL as a parameter
+        },
+         new BotOptions
+            {
+                text = GetFinishedText(),
+                action = ActionTypes.NewChat,
+                actionParams = ""
+            },
+    };
+    }
+
+    // Efficient lookup methods using prebuilt dictionaries
+    private int GetQuestionCategoryId(int questionId)
+    {
+        return questionToCategoryMap.TryGetValue(questionId, out int categoryId)
+            ? categoryId
+            : -1;
+    }
+
+    private string GetCategoryName(int categoryId)
+    {
+        var category = chatData.Categories.FirstOrDefault(c => c.ID == categoryId);
+        if (category == null) return "this category";
+
+        return currentLanguage switch
+        {
+            "English" => !string.IsNullOrEmpty(category.categoryNameEN) ? category.categoryNameEN : category.categoryName,
+            "Arabic" => !string.IsNullOrEmpty(category.categoryNameAR) ? category.categoryNameAR : category.categoryName,
+            _ => category.categoryName // Default to Hebrew
+        };
+    }
+
+    private string GetQuestionText(Questions question)
+    {
+        if (question == null) return string.Empty;
+
+        return currentLanguage switch
+        {
+            "English" => !string.IsNullOrEmpty(question.questionTextEN) ? question.questionTextEN : question.questionText,
+            "Arabic" => !string.IsNullOrEmpty(question.questionTextAR) ? question.questionTextAR : question.questionText,
+            _ => question.questionText // Default to Hebrew
+        };
+    }
+
+    private string GetAnswerText(Questions question)
+    {
+        if (question == null) return string.Empty;
+
+        return currentLanguage switch
+        {
+            "English" => !string.IsNullOrEmpty(question.answerTextEN) ? question.answerTextEN : question.answerText,
+            "Arabic" => !string.IsNullOrEmpty(question.answerTextAR) ? question.answerTextAR : question.answerText,
+            _ => question.answerText // Default to Hebrew
+        };
+    }
+
+    private string GetNextStepText(Questions question)
+    {
+        if (question == null) return string.Empty;
+
+        return currentLanguage switch
+        {
+            "English" => !string.IsNullOrEmpty(question.nextStepEN) ? question.nextStepEN : question.nextStep,
+            "Arabic" => !string.IsNullOrEmpty(question.nextStepAR) ? question.nextStepAR : question.nextStep,
+            _ => question.nextStep // Default to Hebrew
+        };
+    }
+
+    #endregion
+
+    private async Task UploadFile(InputFileChangeEventArgs e)
+    {
+        var imageFiles = e.GetMultipleFiles();
+        foreach (var file in imageFiles)
+        {
+            if (file.Size <= maxFileSize)
+            {
+                var buffer = new byte[file.Size];
+                await file.OpenReadStream(maxFileSize).ReadAsync(buffer);
+                var imageBase64 = Convert.ToBase64String(buffer);
+
+                var saveResponse = await Http.PostAsJsonAsync("api/Media/uploadTemp", imageBase64);
+                if (saveResponse.IsSuccessStatusCode)
+                {
+                    string resizeUrl = await saveResponse.Content.ReadAsStringAsync();
+                    categoryToShow.image = "uploadTemp/" + resizeUrl;
+
+
+                    var saveResponse2 = await Http.PostAsJsonAsync($"api/questions/updateImagesQuestion/{categoryToShow.ID}", categoryToShow.image);
+                    if (saveResponse2.IsSuccessStatusCode)
+                    {
+                        errorImg = "The upload was successful.";
+
+                        isPhotoChanged = true;
+                        hasChanges = true;
+                        StateHasChanged();
+                    }
+                    else
+                    {
+                        var errorMessage = await saveResponse2.Content.ReadAsStringAsync();
+                        errorImg = $"Image update failed: {errorMessage}";
+                    }
+                }
+                else
+                {
+                    var errorMessage = await saveResponse.Content.ReadAsStringAsync();
+                    errorImg = $"Image upload failed: {errorMessage}";
+                }
+            }
+            else
+            {
+                errorImg = "File size exceeds the maximum limit.";
+            }
+        }
+    }
+
+
+
+    // Add these methods to your main component
+    private void OpenSearch()
+    {
+        isSearchOpen = true;
+    }
+
+    private async Task HandleSearchResultSelected(SearchComponent.SearchResult result)
+    {
+        // Clear download states when navigating to a new state
+        downloadCompletedOption = null;
+        downloadFailedOption = null;
+        currentDownloadOption = null;
+
+        // Check if we need to switch language
+        if (!string.IsNullOrEmpty(result.Language) && result.Language != currentLanguage)
+        {
+            // Show confirmation dialog for language change
+            bool confirmed = await PopupService.ShowConfirmationAsync(new PopupOptions
+        {
+            Title = GetLanguageChangeConfirmationTitle(),
+            Message = GetLanguageChangeConfirmationMessage(result.Language),
+            ConfirmText = GetConfirmButtonText(),
+            CancelText = GetCancelButtonText(),
+            ConfirmButtonClass = "btn-main"
+        });
+
+            if (confirmed)
+            {
+                // Switch language first
+                await SwitchLanguage(result.Language);
+
+                // Need to delay a bit to allow language change to take effect
+                await Task.Delay(100);
+            } else
+            {
+                return;
+            }
+        }
+
+    // Save current state to history before navigating
+    conversationHistory.Add(new ConversationHistoryEntry
+    {
+        StateId = currentStateId,
+        Context = currentContext,
+        Messages = new List<ChatMessage>(chatMessages),
+        Options = new List<BotOptions>(currentOptions)
+    });
+
+    if (result.QuestionId.HasValue)
+    {
+        // Navigate directly to the question
+        currentStateId = StateIds.Questions;
+        currentContext = result.QuestionId.Value.ToString();
+
+        // Add user message
+        AddUserMessage(result.Content);
+
+        // Clear current options
+        currentOptions = new List<BotOptions>();
+        StateHasChanged();
+
+        // Show the answer
+        await DisplayQuestionAnswer(result.QuestionId.Value);
+    }
+    else if (result.CategoryId.HasValue)
+    {
+        // Navigate to category questions
+        currentStateId = StateIds.Questions;
+        currentContext = result.CategoryId.Value.ToString();
+
+        // Add user message
+        AddUserMessage(result.Content);
+
+        // Clear current options
+        currentOptions = new List<BotOptions>();
+        StateHasChanged();
+
+        // Show category questions
+        await DisplayCategoryQuestions(result.CategoryId.Value.ToString());
+    }
+}
+
+
+    private async Task MakePhoneCall(string phoneNumber)
+    {
+        try
+        {
+            conversationHistory.Add(new ConversationHistoryEntry
+            {
+                StateId = currentStateId,
+                Context = currentContext,
+                Messages = new List<ChatMessage>(chatMessages),
+                Options = new List<BotOptions>(currentOptions)
+            });
+
+            Logger.LogInformation($"Making phone call to: {phoneNumber}");
+                       
+            await Task.Delay(2000);
+            await JSRuntime.InvokeVoidAsync("open", $"tel:{phoneNumber}");
+          
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error making phone call: {ex.Message}");
+            AddBotMessage("אירעה שגיאה בניסיון לחייג. אנא נסה שוב או חייג ישירות למספר הטלפון.");
+        }
+    }
+
+    private async Task OpenWebsite(string url)
+    {
+        try
+        {
+
+            // Save current state to history before opening the website
+            conversationHistory.Add(new ConversationHistoryEntry
+            {
+                StateId = currentStateId,
+                Context = currentContext,
+                Messages = new List<ChatMessage>(chatMessages),
+                Options = new List<BotOptions>(currentOptions)
+            });
+
+           
+               await Task.Delay(2000);
+            // Use JavaScript interop to open the URL in a new tab
+await JSRuntime.InvokeVoidAsync("openInBackgroundTab", url);        
+        
+        
+      
+    }
+    catch (Exception ex)
+    {
+        Logger.LogError($"Error opening website: {ex.Message}");
+        AddBotMessage("אירעה שגיאה בניסיון לפתוח את האתר. אנא נסה שוב או בקר באתר ישירות.");
+    }
+}
+}

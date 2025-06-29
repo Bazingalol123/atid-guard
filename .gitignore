@@ -1,0 +1,98 @@
+## Ignore Visual Studio temporary files, build results, and
+## user-specific files
+
+# Build results
+bin/
+obj/
+[Bb]uild/
+[Ll]og/
+*.log
+
+# User-specific files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# Rider / JetBrains IDEs
+.idea/
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# Backup & crash reports
+*.bak
+*.swp
+*.tmp
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+project.lock.json
+project.fragment.lock.json
+
+# Entity Framework
+Migrations/
+
+# DotCover
+.idea/.dotCover
+
+# VS for Mac
+.vscode/
+.DS_Store
+
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# Files built by Visual Studio
+*_i.c
+*_p.c
+*_h.h
+*.ilk
+*.meta
+*.obj
+*.pch
+*.pdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp
+*.log
+*.vspscc
+*.vssscc
+
+# Web config transforms
+*.Release.config
+*.Debug.config
+
+# Publish outputs
+publish/
+wwwroot/
+
+# Dotnet generated
+*.dbmdl
+*.jfm
+*.psess
+*.vsp
+*.vspx
+*.vsix
+*.cache
+*.vs/
+*.TestResults/
+TestResults/
+*.coverage
+*.coveragexml
+
+# Local test configuration
+testresults/

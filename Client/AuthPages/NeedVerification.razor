@@ -1,0 +1,132 @@
+﻿@page "/VerifyEmail"
+@inject NavigationManager nav
+@using System.Web
+@attribute [Authorize]
+
+<PageTitle>אימות מייל</PageTitle>
+
+<!-- HTML BLOCK -->
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <img src="./logo-chat.webp" alt="Logo" class="auth-logo" />
+            <div class="success-icon">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="10" stroke="#28a745" stroke-width="2" fill="none" />
+                    <path d="m9 12 2 2 4-4" stroke="#28a745" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </div>
+            <h2>נרשמת בהצלחה!</h2>
+        </div>
+
+        @if (user != null)
+        {
+            <div class="verify-content">
+                <div class="email-info">
+                    <p class="main-message">שלחנו לך מייל אימות לכתובת:</p>
+                    <div class="email-display">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="2" fill="none" />
+                            <polyline points="22,6 12,13 2,6" stroke="currentColor" stroke-width="2" fill="none" />
+                        </svg>
+                        @user.Email
+                    </div>
+                    <p class="instruction">לאימות המייל יש ללחוץ על הקישור שנשלח לך</p>
+                </div>
+
+                @if (!string.IsNullOrEmpty(message))
+                {
+                    <div class="alert @(message.Contains("נשלח") ? "alert-success" : "alert-danger")">
+                        @message
+                    </div>
+                }
+
+                <div class="form-buttons">
+                    <button class="btn btn-primary" @onclick="GoToLogin">
+                        חזרה לדף ההתחברות
+                    </button>
+
+                    <button class="button btn-secondary" @onclick="ResendVerification" disabled="@(timer > 0)">
+                        @if (timer > 0)
+                        {
+                            <span class="timer-display">@timer</span>
+                        }
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M21 3v5h-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M3 21v-5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        שלח מייל אימות חדש
+                    </button>
+                </div>
+
+                <div class="help-section">
+                    <h4>לא מוצא את המייל?</h4>
+                    <ul>
+                        <li>בדוק בתיקיית הספאם</li>
+                        <li>וודא שהכתובת נכונה</li>
+                        <li>המתן מספר דקות</li>
+                    </ul>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- CODE BLOCK -->
+@code {
+    [CascadingParameter]
+    private User user { get; set; }
+
+    [Inject]
+    public IAuthenticationService _Auth { get; set; }
+
+    int timer = 0;
+    string message = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ResendVerification();
+    }
+
+    async Task updateTimer()
+    {
+        if (timer == 0)
+            return;
+        await Task.Delay(1000);
+        timer--;
+        StateHasChanged();
+        await updateTimer();
+    }
+
+    private async void GoToLogin()
+    {
+        await _Auth.Logout();
+        nav.NavigateTo("login");
+    }
+
+    private async Task ResendVerification()
+    {
+        message = "";
+        string sendCode = await _Auth.ResendVerafication(user);
+
+        switch (sendCode)
+        {
+            case AuthResults.Success:
+                timer = 15;
+                await updateTimer();
+                message = $"נשלח מייל אימות לכתובת {user.Email}";
+                break;
+            case AuthResults.EmailFailed:
+                message = "תקלה בשליחת מייל אימות";
+                break;
+            case AuthResults.UserNotFound:
+                message = "לא קיים משתמש במייל זה";
+                break;
+            default:
+                message = "קרתה תקלה";
+                break;
+        }
+    }
+}

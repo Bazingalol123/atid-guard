@@ -1,0 +1,220 @@
+﻿@inject IAuthenticationService _Auth
+@inject PopupService popupService
+@inject IJSRuntime JS
+@inject NavigationManager NavigationManager
+
+<!-- Off-canvas menu for mobile -->
+<div class="offcanvas offcanvas-end text-bg-dark" tabindex="-1" id="offcanvasMobileMenu" aria-labelledby="offcanvasMobileMenuLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="offcanvasMobileMenuLabel"></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <AuthorizeView>
+            <Authorized>
+                <nav class="mobile-nav">
+                    @if (user != null)
+                    {
+                        <div class="user-info mb-3">
+                            <i class="fas fa-user"></i>
+                            @user.FirstName @user.LastName
+                        </div>
+                    }
+
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="/2025/AtidGuard_OmerRaz/" @onclick="CloseOffcanvas" Match="NavLinkMatch.All">
+                            <i class="fas fa-home"></i>
+                            דף הבית
+                        </NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="Admin" @onclick="CloseOffcanvas">
+                            <i class="fas fa-cog"></i>
+                            ניהול צ'אט
+                        </NavLink>
+                    </div>
+                    @if (user?.Roles.Contains(Roles.Admin) == true)
+                    {
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="UsersPage" @onclick="CloseOffcanvas">
+                                <i class="fa-solid fa-users-gear"></i>
+                                ניהול משתמשים
+                            </NavLink>
+                        </div>
+                    }
+
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="#" @onclick="ShowAboutPopup">
+                            <i class="fa-solid fa-address-card"></i>
+                            אודות
+                        </NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <button class="btn" @onclick="() => { _Auth.Logout(); CloseOffcanvas(); }" data-bs-dismiss="offcanvas">
+                            <i class="fas fa-sign-out-alt"></i>
+                            התנתקות
+                        </button>
+                    </div>
+                </nav>
+            </Authorized>
+            <NotAuthorized>
+                <nav class="mobile-nav">
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="/2025/AtidGuard_OmerRaz/" @onclick="CloseOffcanvas" Match="NavLinkMatch.All">
+                            <i class="fas fa-home"></i>
+                            דף הבית
+                        </NavLink>
+                    </div>
+
+                    <div class="nav-item px-3">
+                        <button class="btn nav-link" @onclick="ShowAboutPopup">
+                            <i class="fa-solid fa-address-card"></i>
+                            אודות
+                        </button>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="login" @onclick="CloseOffcanvas">
+                            <i class="fas fa-sign-in-alt"></i>
+                            התחברות
+                        </NavLink>
+                    </div>
+                </nav>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</div>
+
+<!-- Mobile hamburger button -->
+<div class="d-lg-none bg-white shadow-sm" style="height: 3rem;">
+    <button class="navbar-toggler d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMobileMenu" aria-controls="offcanvasMobileMenu">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+</div>
+
+<!-- Desktop Navigation (hidden on mobile) -->
+<AuthorizeView>
+    <Authorized>
+        <div class="navbar navbar-dark d-none d-lg-block">
+            <div class="container-fluid justify-content-start ">
+                <div class="d-flex col-10 gap-1">
+                    @if (user != null)
+                    {
+                        <div class="user-info">
+                            <i class="fas fa-user"></i>
+                            @user.FirstName @user.LastName
+                        </div>
+                    }
+
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="/2025/AtidGuard_OmerRaz/" Match="NavLinkMatch.All">
+                            <i class="fas fa-home"></i>
+                            דף הבית
+                        </NavLink>
+                    </div>
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="Admin">
+                            <i class="fas fa-cog"></i>
+                            ניהול צ'אט
+                        </NavLink>
+                    </div>
+                    @if (user?.Roles.Contains(Roles.Admin) == true)
+                    {
+                        <div class="nav-item">
+                            <NavLink class="nav-link" href="UsersPage">
+                                <i class="fa-solid fa-users-gear"></i>
+                                ניהול משתמשים
+                            </NavLink>
+                        </div>
+                    }
+                </div>
+
+                <div class="nav-item">
+                    <button class="btn nav-link" @onclick="ShowAboutPopup">
+                        <i class="fa-solid fa-address-card"></i>
+                        אודות
+                    </button>
+                </div>
+                <div class="nav-item">
+                    <button class="btn" @onclick="() => { _Auth.Logout(); }">
+                        <i class="fas fa-sign-out-alt"></i>
+                        התנתקות
+                    </button>
+                </div>
+            </div>
+        </div>
+    </Authorized>
+
+    <NotAuthorized>
+        <div class="navbar navbar-dark d-none d-lg-block">
+            <div class="container-fluid justify-content-start">
+                <div class="d-flex col-10">
+                    <div class="nav-item">
+                        <NavLink class="nav-link" href="/2025/AtidGuard_OmerRaz/" Match="NavLinkMatch.All">
+                            <i class="fas fa-home"></i>
+                            דף הבית
+                        </NavLink>
+                    </div>
+                </div>
+                <div class="nav-item">
+                    <button class="btn nav-link" @onclick="ShowAboutPopup">
+                        <i class="fa-solid fa-address-card"></i>
+                        אודות
+                    </button>
+                </div>
+                <div class="nav-item">
+                    <NavLink class="nav-link" href="login">
+                        <i class="fas fa-sign-in-alt"></i>
+                        התחברות
+                    </NavLink>
+                </div>
+            </div>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    [CascadingParameter] private User user { get; set; }
+
+    private async Task ShowAboutPopup()
+    {
+        var aboutContent = @"<div id='aboutModal'>
+                                <h2 style='font-family:Assistant; font-weight: 400; color:#316197;'>עתיד בטוח</h2>
+                                <p>צ'אטבוט אינטראקטיבי למתן ידע וכלים לשינה בטוחה בקרב מטפלים ומטפלות בתינוקות <br/> וצד עריכה לניהול התכנים על ידי מתנדבי ומתנדבות העמותה</p>
+                                <p>פרויקט גמר, תשפ''ה</p>
+                                <a href='https://www.hit.ac.il/academic/instructional-technologies/'>
+                                    הפקולטה לטכנולוגיות למידה
+                                </a>
+                                <div class='about-container'>
+                                    <div class='about-row'>
+                                        <div class='about-text'>
+                                            <h5>:צוות הפרויקט</h5>
+                                            <p>עומר קריספי ורז לוי</p>
+                                            <h5>:מנחות</h5>
+                                            <p>עומרית אבנשטיין וד׳ר מאיה אושר</p>
+                                        </div>
+                                        <div class='about-text'>
+                                            <p>בשיתוף עם עמותת עתיד</p>
+                                            <p>ד׳׳ר ענת שץ - יו״ר</p>
+                                            <p>ליאת אורן וקס - חברת ועד</p>
+                                        </div>
+                                    </div>
+                                    <div class='about-row-logos'>
+                                        <div class='about-logo'>
+                                            <img id='hit-logo' src='./png.jpg' alt='HIT לוגו'>
+                                        </div>
+                                        <div class='about-logo'>
+                                            <img src='./atid-site-logo.webp' alt='עתיד בטוח לוגו'>
+                                        </div>
+                                    </div>
+                                </div>
+                               <br/>
+                            </div>";
+
+        await popupService.ShowAboutAsync(aboutContent);
+    }
+
+    private async Task CloseOffcanvas()
+    {
+        await JS.InvokeVoidAsync("eval", "bootstrap.Offcanvas.getInstance(document.getElementById('offcanvasMobileMenu'))?.hide()");
+    }
+}

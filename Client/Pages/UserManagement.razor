@@ -1,0 +1,778 @@
+﻿<!-- ניהול משתמשים - רק יוזר מאושר יכול להיכנס -->
+@attribute [Authorize(Roles = Roles.Admin)]
+@attribute [Authorize(Policy = "VerifiedUser")]
+
+@page "/UsersPage"
+
+<div class="user-management-container">
+    <div class="page-header">
+        <h1>ניהול משתמשים</h1>
+        <p>ניהל משתמשים במערכת, הוספת, עריכת והגדרת הרשאות</p>
+    </div>
+
+    <!-- הצגת יוזרים לפי תפקיד - Outside the table container -->
+    <div class="filter-buttons">
+        <div class="d-flex flex-column flex-sm-row col-sm-10 gap-1">
+            <button class="@GetButtonClass("")" @onclick="@(() => ShowUsers(""))">
+                <i class="fas fa-clock me-2"></i>
+                משתמשים ממתינים לאישור
+            </button>
+            <button class="@GetButtonClass(Roles.User)" @onclick="@(() => ShowUsers(Roles.User))">
+                <i class="fas fa-user-check me-2"></i>
+                מנהלי צ'אט
+            </button>
+            <button class="@GetButtonClass(Roles.Admin)" @onclick="@(() => ShowUsers(Roles.Admin))">
+                <i class="fas fa-user-shield me-2"></i>
+                אדמינים
+            </button>
+        </div>
+        <button class="button" style="    position: relative;
+   " @onclick="ShowAddUserModal">
+            <i class="fas fa-user-plus"></i>
+            הוספת משתמש חדש
+        </button>
+    </div>
+
+    <!-- Table container with add button -->
+    <div class="card">
+        <div class="card-body">
+            <!-- Add user button - Updated to show modal -->
+            <div class="table-header">
+            </div>
+
+            <!-- Desktop Table View -->
+            <div class="desktop-table">
+                @if (users != null && users.Any())
+                {
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>שם פרטי</th>
+                                <th>שם משפחה</th>
+                                <th>כתובת מייל</th>
+                                <th>הרשאות ניהול צ'אט</th>
+                                <th class="admin-header" data-title="הרשאות אדמין מאפשרות מחיקת משתמשים, הוספת משתמשים ושינוי ההרשאות למשתמשים קיימים">הרשאות אדמין <i class="fas fa-info-circle"></i></th>
+                                <th>מחיקת משתמש</th>
+
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (UserForAdmin user in users)
+                            {
+                                <tr>
+                                    <td>@user.FirstName</td>
+                                    <td>@user.LastName</td>
+                                    <td>@user.Email</td>
+                                    <td>
+                                        <input type="checkbox" id="user-checkbox-@user.Id" checked="@user.Roles.Contains(Roles.User)" @onchange='@(() => toggleRole(user, Roles.User))' />
+                                    </td>
+                                    <td>
+                                        <input type="checkbox" id="user-checkbox-@user.Id" checked=@user.Roles.Contains(Roles.Admin) @onchange='@(() => toggleRole(user, Roles.Admin))' />
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-icon btn-danger" title="מחיקת משתמש" @onclick="() => OpenDeleteConfirmation(user)">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <div class="empty-state">
+                        <i class="fas fa-users"></i>
+                        <p>לא נמצאו משתמשים</p>
+                    </div>
+                }
+            </div>
+
+            <!-- Mobile Card View -->
+            <div class="mobile-users-container">
+                @if (users != null && users.Any())
+                {
+                    @foreach (UserForAdmin user in users)
+                    {
+                        <div class="user-card @(expandedUserId == user.Id.ToString() ? "expanded" : "")" @onclick="@(() => ToggleUserCard(user.Id.ToString()))">
+                            <div class="user-card-header">
+                                <div class="user-info">
+                                    <div class="user-avatar">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                    <div class="user-basic-info">
+                                        <div class="user-name">@user.FirstName @user.LastName</div>
+                                        <div class="role-badge @(user.Roles.Contains(Roles.Admin) ? "admin" : (string.IsNullOrEmpty(activeRole) ? "pending" : "user"))">
+                                            <i class="fas @(user.Roles.Contains(Roles.Admin) ? "fa-shield-alt" : (string.IsNullOrEmpty(activeRole) ? "fa-clock" : "fa-user"))"></i>
+                                            @(user.Roles.Contains(Roles.Admin) ? "אדמין" : (string.IsNullOrEmpty(activeRole) ? "ממתין לאישור" : "משתמש"))
+                                        </div>
+                                    </div>
+                                </div>
+                                <i class="fas fa-chevron-down expand-icon"></i>
+                            </div>
+
+                            @if (expandedUserId == user.Id.ToString())
+                            {
+                                <div class="user-card-details">
+                                    <div class="detail-row">
+                                        <div class="detail-label">
+                                            <i class="fas fa-envelope"></i>
+                                            כתובת מייל
+                                        </div>
+                                        <div class="detail-value">@user.Email</div>
+                                    </div>
+
+                                    <div class="detail-row">
+                                        <div class="detail-label">
+                                            <i class="fas fa-shield-alt"></i>
+                                            הרשאות אדמין
+                                        </div>
+                                        <label class="toggle-switch" @onclick:stopPropagation="true">
+                                            <span class="toggle-label">@(user.Roles.Contains(Roles.Admin) ? "אדמין" : "משתמש")</span>
+                                            <input type="checkbox" checked=@user.Roles.Contains(Roles.Admin) @onchange='@(() => toggleRole(user, Roles.Admin))' />
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <!-- Add delete button for mobile -->
+                                    <div class="detail-row">
+                                        <button class="button btn-danger btn-sm" @onclick="() => OpenDeleteConfirmation(user)" @onclick:stopPropagation="true">
+                                            <i class="fas fa-trash-alt me-2"></i>
+                                            מחק משתמש
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="empty-state mobile-empty">
+                        <i class="fas fa-users"></i>
+                        <p>לא נמצאו משתמשים</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <div class="message">
+            <i class="fas fa-info-circle me-2"></i>
+            @message
+        </div>
+    }
+</div>
+
+<!-- Add User Modal -->
+@if (showAddUserModal)
+{
+    <div class="modal fade show" style="display: block;" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content" id="addUserModal">
+                <div class="modal-header">
+                    <h5 class="modal-title col-11">הוספת משתמש חדש</h5>
+                    <button type="button" class="fa-solid fa-xmark" @onclick="CloseAddUserModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="userToAdd" OnValidSubmit="AddUser">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="form-group mb-3">
+                            <label for="fname" class="form-label">שם פרטי</label>
+                            <InputText @bind-Value="userToAdd.FirstName" id="fname" class="form-control"></InputText>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="lname" class="form-label">שם משפחה</label>
+                            <InputText @bind-Value="userToAdd.LastName" id="lname" class="form-control"></InputText>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="email" class="form-label">מייל</label>
+                            <InputText @bind-Value="userToAdd.Email" id="email" class="form-control"></InputText>
+                        </div>
+
+                        <div class="form-group mb-4">
+                            <label class="form-label">בחירת הרשאה</label>
+                            <div class="role-selection">
+
+                                <div class="role-option">
+                                    <label class="role-label">
+                                        <input type="radio" name="role" value="User" @onchange="@(() => selectedRole = "User")" checked="@(selectedRole == "User")">
+                                        <span class="role-content">
+                                            <span class="role-title">
+                                                <i class="fas fa-user-check me-2"></i>
+                                                מנהל צ'אט
+                                            </span>
+                                            <i class="fas fa-info-circle tooltip-icon"
+                                               @onmouseover="@(() => ShowTooltip("manager"))"
+                                               @onmouseout="HideTooltip"></i>
+                                        </span>
+                                    </label>
+                                    <div class="tooltip-container @(showTooltip == "manager" ? "show" : "")">
+                                        <div class="tooltip-content">
+                                            גישה לניהול תוכן הצ'אט בלבד: עריכת שאלות ותשובות, קטגוריות ותוכן
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="role-option">
+                                    <label class="role-label">
+                                        <input type="radio" name="role" value="Admin" @onchange="@(() => selectedRole = "Admin")" checked="@(selectedRole == "Admin")">
+                                        <span class="role-content">
+                                            <span class="role-title">
+                                                <i class="fas fa-user-shield me-2"></i>
+                                                אדמין
+                                            </span>
+                                            <i class="fas fa-info-circle tooltip-icon"
+                                               @onmouseover="@(() => ShowTooltip("admin"))"
+                                               @onmouseout="HideTooltip"></i>
+                                        </span>
+                                    </label>
+                                    <div class="tooltip-container @(showTooltip == "admin" ? "show" : "")">
+                                        <div class="tooltip-content">
+                                            גישה מלאה למערכת: ניהול משתמשים, עריכת תוכן, הגדרות מערכת וכל פונקציות הצ'אט
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <div class="modal-footer justify-content-sm-end justify-content-center">
+                            <button type="button" class="button btn-secondary" @onclick="CloseAddUserModal">ביטול</button>
+                            <button type="submit" class="button" disabled="@(loading || string.IsNullOrEmpty(selectedRole))">
+                                @if (loading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                }
+                                הוספה
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Confirmation Popup for User Deletion -->
+<ConfirmationPopup @ref="deleteConfirmation"
+                   Title="מחיקת משתמש"
+                   ConfirmText="מחיקה"
+                   CancelText="ביטול"
+                   ConfirmButtonClass="btn-danger"
+                   OnConfirm="ConfirmDeleteUser">
+    <p>האם ברצונך למחוק את המשתמש הזה?</p>
+    @if (userToDelete != null)
+    {
+        <blockquote class="user-preview">
+            <strong>@userToDelete.FirstName @userToDelete.LastName</strong><br />
+            <small class="text-muted">@userToDelete.Email</small>
+        </blockquote>
+    }
+    <p><strong>לא ניתן יהיה לשחזר את המשתמש לאחר המחיקה.</strong></p>
+</ConfirmationPopup>
+
+
+<style>
+    /* Existing styles remain the same */
+
+    /* Modal Styles - Added from Admin.razor pattern */
+    .modal {
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-dialog {
+        display: flex;
+        justify-content: center;
+    }
+
+    .modal-content {
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        height: 5rem;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e2e8f0;
+        background-color: #f8f9fa;
+        background-image: url('./header.jpg');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+    }
+
+        .modal-header .fa-xmark {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: #6c757d;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+
+            .modal-header .fa-xmark:hover {
+                background-color: #e9ecef;
+                color: #55595C;
+            }
+
+    .modal-body {
+        padding: 1.5rem;
+        color: #475569;
+        font-size: 1rem;
+        line-height: 1.5;
+    
+    }
+
+    .modal-footer {
+        display: flex;
+        justify-content: center;
+        gap: 0.75rem;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    /* Role Selection Styles */
+    .role-selection {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .role-option {
+        position: relative;
+        border: 1px solid #55595C;
+        border-radius: 8px;
+        padding: 1rem;
+        transition: all 0.3s ease;
+        background-color: #fff;
+    }
+
+        .role-option:hover {
+            border-color: #E31C79;
+            background-color: #FAE2EF;
+            box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+        }
+
+            .role-option:hover .role-title  {
+                color: #E31C79; /* Just change the icon color */
+            }
+
+            .role-option:hover .role-title i.fas {
+                color: #E31C79; /* Just change the icon color */
+            }
+
+        .role-option:has(input:checked) {
+            border-color: #C71868;
+            color: #E31C79;
+            background-color: #FAE2EF;
+            box-shadow: 0 2px 8px rgba(0, 123, 255, 0.15);
+        }
+
+        .role-option:has(input:checked) .role-title {
+            color: #E31C79;
+        }
+
+                .role-option:has(input:checked) .role-title i.fas {
+                color: #E31C79;
+            }
+
+
+
+
+    .role-label {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        margin: 0;
+        width: 100%;
+    }
+
+        .role-label input[type="radio"] {
+            margin-left: 0.75rem;
+            transform: scale(1.2);
+            accent-color: #C71868;
+        }
+
+    .role-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .role-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 500;
+        color: #55595C;
+        font-size: 1.1rem;
+    }
+
+        .role-title i.fas {
+            color: #55595C;
+        }
+
+    /* Tooltip Styles */
+    .tooltip-icon {
+        color: #55595C;
+        cursor: help;
+        font-size: 0.9rem;
+        padding: 0.25rem;
+        border-radius: 50%;
+        transition: all 0.2s;
+    }
+
+        .tooltip-icon:hover {
+            color: #55595C;
+            background-color: #FAE2EF;
+        }
+
+    .tooltip-container {
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1050;
+        margin-top: 0.5rem;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+        pointer-events: none;
+    }
+
+        .tooltip-container.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+    .tooltip-content {
+        background-color: #343a40;
+        color: white;
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        max-width: 280px;
+        text-align: center;
+        line-height: 1.4;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        position: relative;
+    }
+
+        .tooltip-content::before {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 6px solid #343a40;
+        }
+
+    /* Form Styles */
+    .form-group .form-label {
+        font-weight: 500;
+        color: #495057;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control {
+        border-radius: 6px;
+        border: 1px solid #ced4da;
+        padding: 0.6rem 0.75rem;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+
+        .form-control:focus {
+            border-color: #C71868;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+
+    .btn-submit:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .btn {
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        border: 1px solid transparent;
+    }
+
+        .btn:hover {
+            color: white;
+            background-color: white;
+            border-color: var(--bs-btn-hover-border-color);
+        }
+
+    .btn-primary {
+        background-color: #2563eb;
+        color: white;
+    }
+
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+
+
+
+
+        
+
+    .btn-danger {
+        background-color: white;
+        color: #ef4444;
+        border: #ef4444 solid 1px;
+    }
+
+        .btn-danger:hover {
+            background-color: #dc2626;
+            color: white;
+        }
+
+    .btn-main {
+        background-color: #E31C79;
+        color: white;
+    }
+
+        .btn-main:hover {
+            background-color: #E31C79dd;
+        }
+
+        .btn-main:active{
+            background-color:#E31C7999
+        }
+</style>
+   
+
+@code {
+
+    List<UserForAdmin> users = new List<UserForAdmin>();
+    string message = "";
+    string activeRole = "";
+    string expandedUserId = "";
+
+    bool loading = false;
+    bool isTabActive = false;
+    UserAddedByAdmin userToAdd = null;
+    private UserForAdmin userToDelete = null;
+
+    // ConfirmationPopup reference
+    private ConfirmationPopup deleteConfirmation;
+
+    // Modal-related properties
+    private bool showAddUserModal = false;
+    private string selectedRole = "User"; // Default to Chat Manager
+    private string showTooltip = "";
+
+    [Inject]
+    public IAuthenticationService _Auth { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ShowUsers("");
+    }
+
+    void ToggleUserCard(string userId)
+    {
+        expandedUserId = expandedUserId == userId ? "" : userId;
+    }
+
+    // Modal methods
+    private void ShowAddUserModal()
+    {
+        userToAdd = new UserAddedByAdmin();
+        selectedRole = "User"; // Default to Chat Manager
+        showAddUserModal = true;
+    }
+
+    private void CloseAddUserModal()
+    {
+        showAddUserModal = false;
+        userToAdd = null;
+        selectedRole = "";
+        showTooltip = "";
+    }
+
+    private void ShowTooltip(string tooltip)
+    {
+        showTooltip = tooltip;
+    }
+
+    private void HideTooltip()
+    {
+        showTooltip = "";
+    }
+
+    // Updated AddUser method to handle role assignment
+    async Task AddUser()
+    {
+        message = "";
+        loading = true;
+
+        AdminResults newUser = await _Auth.AdminAddUser(userToAdd);
+
+        if (newUser.User != null)
+        {
+            // After successful creation, assign the selected role
+            await _Auth.ToggleUserRole(newUser.User, selectedRole);
+
+            CloseAddUserModal();
+            users.Add(newUser.User);
+        }
+
+        switch (newUser.Result)
+        {
+            case AuthResults.ChangeRoleFailed:
+                message = "קרתה תקלה באישור המשתמש";
+                break;
+            case AuthResults.Exists:
+                message = "המשתמש כבר קיים";
+                break;
+            case AuthResults.CreateUserFailed:
+                message = "קרתה תקלה ביצירת המשתמש";
+                break;
+            case AuthResults.EmailFailed:
+                message = "שליחת אימייל נכשלה";
+                break;
+            default:
+                message = "המשתמש נוסף בהצלחה";
+                break;
+        }
+
+        loading = false;
+    }
+
+    async Task toggleRole(UserForAdmin user, string role)
+    {
+        message = "";
+
+        AdminResults auth = await _Auth.ToggleUserRole(user, role);
+
+        if (auth.User == null)
+        {
+            message = "קרתה תקלה";
+        }
+        else
+        {
+            UserForAdmin user2change = users.Where(u => u.Id == user.Id).FirstOrDefault();
+            if (user2change == null)
+            {
+                message = "קרתה תקלה";
+                return;
+            }
+            user2change.Roles = auth.User.Roles;
+            if (auth.Result == AuthResults.EmailFailed)
+            {
+                message = "קרתה תקלה בשליחת מייל";
+            }
+            else
+            {
+                message = $"המשתמש {user.FirstName} {user.LastName} עודכן בהצלחה";
+            }
+        }
+    }
+
+    /// <summary>
+    /// פתיחת אישור מחיקה
+    /// </summary>
+    /// <param name="user">המשתמש למחיקה</param>
+    private void OpenDeleteConfirmation(UserForAdmin user)
+    {
+        userToDelete = user;
+        deleteConfirmation.Show();
+    }
+
+    /// <summary>
+    /// אישור מחיקת משתמש
+    /// </summary>
+    private async Task ConfirmDeleteUser()
+    {
+        if (userToDelete != null)
+        {
+            await DeleteUser();
+        }
+    }
+
+    /// <summary>
+    /// מחיקת משתמש
+    /// </summary>
+    private async Task DeleteUser()
+    {
+        if (userToDelete == null) return;
+
+        message = "";
+        loading = true;
+
+        try
+        {
+            AdminResults result = await _Auth.DeleteUser(userToDelete.Id);
+
+            if (result.Result == AuthResults.Success)
+            {
+                // Remove user from the list
+                users.Remove(userToDelete);
+                message = $"המשתמש {userToDelete.FirstName} {userToDelete.LastName} נמחק בהצלחה";
+            }
+            else
+            {
+                switch (result.Result)
+                {
+                    case AuthResults.UserNotFound:
+                        message = "המשתמש לא נמצא";
+                        break;
+                    case AuthResults.Failed:
+                        message = "קרתה תקלה במחיקת המשתמש";
+                        break;
+                    default:
+                        message = "קרתה תקלה לא צפויה";
+                        break;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            message = "קרתה תקלה בתקשורת עם השרת";
+        }
+        finally
+        {
+            loading = false;
+            userToDelete = null;
+            StateHasChanged();
+        }
+    }
+
+    async Task ShowUsers(string roles)
+    {
+        message = "";
+        isTabActive = true;
+        activeRole = roles;
+        expandedUserId = ""; // Reset expanded cards when switching filters
+
+        users = await _Auth.GetUsersByRoles(roles);
+        if (users == null)
+            message = "קרתה תקלה";
+    }
+
+    //Helper method for Active Button
+    string GetButtonClass(string role)
+    {
+        return activeRole == role ? "active-filter-button" : "filter-button";
+    }
+}

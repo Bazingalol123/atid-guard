@@ -1,0 +1,90 @@
+@using System.Threading.Tasks
+
+@if (_isVisible)
+{
+    <div class="popup-overlay @(_isVisible ? "visible" : "")" @onclick="@HandleBackdropClick">
+        <div class="popup-container @(_isVisible ? "popup-visible" : "")" @onclick:stopPropagation="true">
+            <div class="popup-header">
+                <h3>@Title</h3>
+                <button type="button" class="fa-solid fa-xmark" style="color: #55595C;" @onclick="Cancel" aria-label="סגור">
+                </button>
+            </div>
+
+            <div class="popup-body">
+                @if (!string.IsNullOrEmpty(Message))
+                {
+                    <p>@Message</p>
+                }
+                else
+                {
+                    @ChildContent
+                }
+            </div>
+
+            <div class="popup-footer @(!string.IsNullOrEmpty(FooterClass) ? FooterClass : "")">
+                @if (ShowCancelButton)
+                {
+                    <button type="button" class="button btn-secondary" @onclick="Cancel">
+                        @CancelText
+                    </button>
+                }
+                <button type="button" class="button @ConfirmButtonClass" @onclick="Confirm">
+                    @ConfirmText
+                </button>
+                @if (!string.IsNullOrEmpty(FooterText))
+                {
+                    <p class="footer">@FooterText</p>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _isVisible = false;
+
+    [Parameter] public string Title { get; set; } = "אישור פעולה";
+    [Parameter] public string Message { get; set; } = "";
+    [Parameter] public RenderFragment ChildContent { get; set; }
+    [Parameter] public string ConfirmText { get; set; } = "אישור";
+    [Parameter] public string CancelText { get; set; } = "ביטול";
+    [Parameter] public string ConfirmButtonClass { get; set; } = "btn-main";
+    [Parameter] public bool ShowCancelButton { get; set; } = true;
+    [Parameter] public string FooterClass { get; set; } = "";
+    [Parameter] public string FooterText { get; set; } = "";
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public bool CloseOnBackdropClick { get; set; } = true;
+
+    public void Show()
+    {
+        _isVisible = true;
+        StateHasChanged();
+    }
+
+    public void Hide()
+    {
+        _isVisible = false;
+        StateHasChanged();
+    }
+
+    private async Task Confirm()
+    {
+        Hide();
+        await OnConfirm.InvokeAsync();
+    }
+
+    private async Task Cancel()
+    {
+        Hide();
+        await OnCancel.InvokeAsync();
+    }
+
+    private void HandleBackdropClick()
+    {
+        if (CloseOnBackdropClick)
+        {
+            Hide();
+        }
+    }
+}

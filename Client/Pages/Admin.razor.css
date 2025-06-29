@@ -1,0 +1,362 @@
+﻿
+
+.chat-editor-container {
+    margin: 2rem auto;
+    max-width: 1200px;
+    padding: 0 1rem;
+}
+
+
+
+.card {
+    border: 1px solid var(--border-color);
+    border-radius: 15px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    margin-bottom: 1.5rem;
+    background-color: white;
+}
+
+
+/* Add this to your admin component's <style> section */
+
+/* Admin language dropdown styling to match chat */
+.admin-language-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: auto;
+    max-width: 200px;
+}
+
+.admin-language-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background-color: rgba(255, 255, 255, 0.9) !important;
+    border-radius: 8px;
+    color: #55595C;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 16px;
+    border: none !important;
+    min-width: 120px;
+}
+
+    .admin-language-toggle:hover {
+        background-color: rgba(255, 255, 255, 1);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+
+/* Dropdown menu positioning for admin */
+.admin-language-wrapper .dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 5px;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Active dropdown item styling */
+.admin-language-wrapper .dropdown-item.active {
+    background-color: #316197;
+    color: white;
+}
+
+.admin-language-wrapper .dropdown-item:active {
+    background-color: #316197;
+}
+
+/* Ensure the dropdown button removes bootstrap default styles */
+.admin-language-wrapper .btn.dropdown-toggle {
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+}
+
+    .admin-language-wrapper .btn.dropdown-toggle:focus {
+        box-shadow: none !important;
+    }
+
+/* Override any existing dropdown styling */
+.dropdown.col-sm-8 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.card-header {
+    background-color: white;
+    border-bottom: 1px solid var(--border-color);
+    padding: 1.25rem;
+    border-radius: 15px 15px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.alert-info {
+    background-color: #FFF5F9;
+    border: #FFF5F9 solid 0.5px;
+    color:#55595C;
+    font-weight:500;
+}
+.tableCardHeader {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-header h5 {
+    margin: 0;
+    font-weight: 600;
+    color: #333;
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+.btn-preview{
+    background-color:#316197;
+    color:white;
+}
+
+/* Navigation Pills */
+.nav-pills .nav-link {
+    color: #666;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+}
+
+.nav-pills .nav-link:hover {
+    background-color: var(--pink-light);
+    color: var(--pink-primary);
+    border-color: var(--pink-primary);
+}
+
+.nav-pills .nav-link.active {
+    background-color: var(--pink-primary);
+    color: white;
+    box-shadow: 0 2px 4px rgba(227, 28, 121, 0.2);
+}
+
+.nav-pills .nav-link.active:hover {
+    background-color: var(--pink-hover);
+    border-color: transparent;
+    color: black;
+}
+
+.nav-pills .nav-link i {
+    font-size: 1.1rem;
+    transition: transform 0.3s ease;
+}
+
+.nav-pills .nav-link:hover i {
+    transform: translateX(-2px);
+}
+
+
+/* Table Styling */
+.table {
+    margin-bottom: 0;
+}
+
+.table th {
+    background-color: var(--gray-light);
+    border-bottom: 2px solid var(--border-color);
+    color: #444;
+    font-weight: 600;
+    padding: 1rem;
+}
+
+.table td {
+    padding: 1rem;
+    vertical-align: middle;
+}
+
+/* Button Groups */
+.btn-group {
+    display: flex;
+    gap: 0.5rem;
+    flex-direction:row-reverse;
+}
+
+.btn-main {
+    background-color: #E31C79;
+    color: white;
+
+}
+
+
+.btn-outline-modal {
+    background-color: rgba(85, 89, 92, 0.1);
+    color: #55595C;
+    transition: all 0.2s ease;
+}
+
+    .btn-outline-modal:hover {
+        background-color: rgba(85, 89, 92, 0.2);
+        color: #454a4d;
+    }
+
+.btn-group .btn {
+    margin: 0;
+}
+
+/* Form Controls */
+.form-control {
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    padding: 0.75rem;
+    transition: border-color 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: var(--pink-primary);
+    box-shadow: 0 0 0 3px rgba(227, 28, 121, 0.1);
+}
+
+#dropdownMenuButton1, dropdownMenuButton2 {
+    background-color: transparent !important;
+    color: black !important;
+    text-align:right;
+    border: none !important;
+    justify-self:flex-start;
+}
+
+
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #000
+}
+
+    .modal-backdrop.fade {
+        opacity: 0
+    }
+
+    .modal-backdrop.show {
+        opacity: .5;
+        z-index:100 !important;
+    }
+
+.modal-header {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #dee2e6;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    background-image: url('./header.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+    .modal-header .fa-solid fa-xmark {
+        padding: .5rem .5rem;
+        margin: -.5rem -.5rem -.5rem auto;
+        border:none;
+    }
+
+.modal-title {
+    margin-bottom: 0;
+    line-height: 1.5
+}
+
+.modal-body {
+    position: relative;
+    flex: 1 1 auto;
+    padding: 1rem
+}
+
+.modal-footer {
+    display: flex;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: flex-end;
+    padding: .75rem;
+    border-top: 1px solid #dee2e6;
+    border-bottom-right-radius: calc(.3rem - 1px);
+    border-bottom-left-radius: calc(.3rem - 1px)
+}
+
+    .modal-footer > * {
+        margin: .25rem
+    }
+
+/* Validation Styling */
+.validation-message {
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.valid.modified:not([type=checkbox]) {
+    border-color: #198754;
+}
+
+.invalid {
+    border-color: #dc3545;
+}
+
+/* Loading Spinner */
+.spinner-border {
+    color: var(--pink-primary);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .chat-editor-container {
+        padding: 0 0.5rem;
+    }
+
+    .i.fas.fa-plus{
+        margin-left:2vw;
+    }
+
+    .btn-group {
+        flex-direction: row-reverse;
+    }
+
+    .card-header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+
+    .table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    #adminEditQuestionModal, #adminEditCategoryModal {
+        left: 50%;
+        transform: translateX(-61%);
+    }
+}
+

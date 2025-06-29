@@ -1,0 +1,201 @@
+@using AuthWithAdmin.Client.ClientHelpers
+@using Microsoft.AspNetCore.Components.Web
+@using System.Threading.Tasks
+@inject PopupService PopupService
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+@if (_isVisible)
+{
+    <div class="popup-overlay @(_isVisible ? "visible" : "")" @onclick="@HandleBackdropClick" @key="popupKey">
+        <div class="popup-container @(_isVisible ? "popup-visible" : "") @_options.ContainerClass" @onclick:stopPropagation="true">
+            <div class="popup-header">
+                <h3>@_options.Title</h3>
+                <button type="button" class="fa-solid fa-xmark" style="color:#55595C;" @onclick="ConfirmOrClose" aria-label="סגור">
+                </button>
+            </div>
+            <div class="popup-body @_options.CurrentDirection">
+                @if (!string.IsNullOrEmpty(_options.HtmlContent))
+                {
+                    @((MarkupString)_options.HtmlContent)
+                }
+                else if (!string.IsNullOrEmpty(_options.Message))
+                {
+                    @((MarkupString)_options.Message)
+                }
+            </div>
+
+            <div class="popup-footer @(!string.IsNullOrEmpty(_options.FooterClass) ? _options.FooterClass : "")">
+                @if (_options.ShowCancelButton && _isConfirmationDialog)
+                {
+                    <button type="button" class="button btn-secondary" @onclick="Cancel">
+                        @_options.CancelText
+                    </button>
+                }
+                @if (_isConfirmationDialog)
+                {
+                    <button type="button" class="button" @onclick="Confirm">
+                        @_options.ConfirmText
+                    </button>
+                }
+                @if (!string.IsNullOrEmpty(_options.FooterText))
+                {
+                    <p class="footer"> @((MarkupString)_options.FooterText)</p>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    
+    private bool _isVisible;
+    private PopupOptions _options = new PopupOptions();
+    private TaskCompletionSource<bool> _resultTcs;
+    private TaskCompletionSource _infoTcs;
+    private Guid popupKey = Guid.NewGuid();
+    private bool _isConfirmationDialog;
+    private static bool _isInitialized = false;
+
+    protected override void OnInitialized()
+    {
+        if (!_isInitialized)
+        {
+            // Make sure we unregister any existing handlers first to prevent duplicates
+            try
+            {
+                PopupService.OnShowConfirmation -= ShowConfirmationAsync;
+                PopupService.OnShowInfo -= ShowInfoAsync;
+            }
+            catch { /* Ignore any errors if not already registered */ }
+
+            // Register our handlers and initialize the service
+            PopupService.Initialize();
+            PopupService.OnShowConfirmation += ShowConfirmationAsync;
+            PopupService.OnShowInfo += ShowInfoAsync;
+            _isInitialized = true;
+            Console.WriteLine("PopupHost initialized");
+        }
+    }
+
+    public void Dispose()
+    {
+        // Unsubscribe from the PopupService events
+        try
+        {
+            PopupService.OnShowConfirmation -= ShowConfirmationAsync;
+            PopupService.OnShowInfo -= ShowInfoAsync;
+            _isInitialized = false;
+        }
+        catch { /* Ignore any errors during cleanup */ }
+    }
+
+    private async Task<bool> ShowConfirmationAsync(PopupOptions options)
+    {
+        try
+        {
+            _isConfirmationDialog = true;
+            return await ShowPopupAsync(options);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error showing confirmation popup: {ex.Message}");
+            return false;
+        }
+    }
+
+    private async Task ShowInfoAsync(PopupOptions options)
+    {
+        try
+        {
+            _isConfirmationDialog = false;
+            await ShowPopupAsync(options);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error showing info popup: {ex.Message}");
+        }
+    }
+
+    private async Task<bool> ShowPopupAsync(PopupOptions options)
+    {
+        // Create a new key for each popup to ensure fresh rendering
+        popupKey = Guid.NewGuid();
+
+        // Reset state for new popup
+        _options = options ?? new PopupOptions();
+        if (_isConfirmationDialog)
+        {
+            _resultTcs = new TaskCompletionSource<bool>();
+        }
+        else
+        {
+            _infoTcs = new TaskCompletionSource();
+        }
+
+        // Make visible and trigger UI update
+        _isVisible = true;
+        StateHasChanged();
+
+        // Ensure proper rendering of HTML content
+        await Task.Delay(10); // Small delay to ensure DOM updates
+
+        // Wait for user response
+        if (_isConfirmationDialog)
+        {
+            return await _resultTcs.Task;
+        }
+        else
+        {
+            await _infoTcs.Task;
+            return false; // Not used for info dialogs
+        }
+    }
+
+    private void HandleBackdropClick()
+    {
+        if (_options?.CloseOnBackdropClick == true)
+        {
+            ConfirmOrClose();
+        }
+    }
+
+    private void Confirm()
+    {
+        _isVisible = false;
+        if (_isConfirmationDialog)
+        {
+            var tcs = _resultTcs;
+            _resultTcs = null;
+            tcs?.TrySetResult(true);
+        }
+        else
+        {
+            var tcs = _infoTcs;
+            _infoTcs = null;
+            tcs?.TrySetResult();
+        }
+        StateHasChanged();
+    }
+
+    private void Cancel()
+    {
+        _isVisible = false;
+        var tcs = _resultTcs;
+        _resultTcs = null;
+        tcs?.TrySetResult(false);
+        StateHasChanged();
+    }
+
+    private void ConfirmOrClose()
+    {
+        if (_isConfirmationDialog)
+        {
+            Cancel();
+        }
+        else
+        {
+            Confirm();
+        }
+    }
+}
